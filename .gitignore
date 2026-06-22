@@ -1,0 +1,23 @@
+# Virtual Environments
+venv/
+env/
+.env
+
+# Python Caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Video Output and Input Directories
+ml/raw_videos/
+ml/finished_videos/
+
+# Temporary files
+*.srt
+*.log
+temp_subs.srt
+
+# OS generated files
+.DS_Store
+Thumbs.db
