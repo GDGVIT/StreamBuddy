@@ -1,57 +1,105 @@
 /* global MAIN_WINDOW_VITE_DEV_SERVER_URL, MAIN_WINDOW_VITE_NAME */
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, globalShortcut } from 'electron'
 import path from 'node:path'
+import { spawn } from 'node:child_process'
 import started from 'electron-squirrel-startup'
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit()
 }
 
+let mainWindow
+
 const createWindow = () => {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+  mainWindow = new BrowserWindow({
+    width: 1600,
+    height: 900,
+    minWidth: 1280,
+    minHeight: 720,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js')
     }
   })
 
-  // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL)
   } else {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`))
   }
 
-  // Open the DevTools.
   mainWindow.webContents.openDevTools()
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
+// app.getAppPath() always resolves to the app root (StreamBuddy/app/)
+// regardless of whether we're in dev or production — safer than __dirname
+const APP_ROOT = app.getAppPath()
+
+// ml/ sits one level above app/ in the StreamBuddy root
+const ML_ROOT = path.join(APP_ROOT, '../ml')
+
+const PIPELINE_SCRIPT = path.join(ML_ROOT, 'pipeline.py')
+
+// The video file to process — later this will come from OBS via monitor.py
+// For now hardcoded for testing; replace with dynamic path when ready
+const TEST_VIDEO_PATH = path.join(ML_ROOT, 'examples/test.mp4')
+
+function runProcessingPipeline(videoPath) {
+  const python = spawn('python', [PIPELINE_SCRIPT, videoPath])
+
+  // Read stdout line by line and forward STAGE: messages to the renderer
+  python.stdout.on('data', (data) => {
+    const lines = data.toString().split('\n')
+    lines.forEach(line => {
+      line = line.trim()
+      if (line.startsWith('STAGE:')) {
+        const stageRaw = line.replace('STAGE:', '')
+
+        if (stageRaw.startsWith('DONE:')) {
+          // Pipeline finished — clear the processing indicator
+          mainWindow.webContents.send('stage-update', null)
+        } else {
+          // Map Python stage names to what the Dashboard expects
+          const stageMap = {
+            'TRANSCRIBING': 'transcribing',
+            'FINALIZING': 'finalising',
+          }
+          const stage = stageMap[stageRaw] || stageRaw.toLowerCase()
+          mainWindow.webContents.send('stage-update', stage)
+        }
+      }
+    })
+  })
+
+  python.stderr.on('data', (data) => {
+    console.error('Python error:', data.toString())
+  })
+
+  python.on('close', (code) => {
+    console.log(`Python process exited with code ${code}`)
+  })
+}
+
 app.whenReady().then(() => {
   createWindow()
 
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
     }
   })
+
+  globalShortcut.register('F5', () => {
+    // Send 'clipping' immediately on hotkey press
+    mainWindow.webContents.send('stage-update', 'clipping')
+
+    // Then kick off the real Python pipeline
+    // TODO: replace TEST_VIDEO_PATH with the actual OBS output path
+    runProcessingPipeline(TEST_VIDEO_PATH)
+  })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
