@@ -152,7 +152,6 @@ def process_video_pipeline(input_video_path, facecam_config="384:216:0:0"):
         )
         return None
 
-    
     ml_dir = os.path.dirname(os.path.abspath(__file__))
     srt_file_path = os.path.join(ml_dir, "temp_subs.srt")
 
@@ -168,7 +167,7 @@ def process_video_pipeline(input_video_path, facecam_config="384:216:0:0"):
         # 3. Step Three: Burn Overlay into Destination Stream
         output_dir = os.path.join(ml_dir, "finished_videos")
         os.makedirs(output_dir, exist_ok=True)
-        
+
         base_name = os.path.basename(input_video_path)
         output_path = os.path.join(output_dir, f"polished_{base_name}")
 
@@ -203,4 +202,3 @@ if __name__ == "__main__":
     cli_facecam_config = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_FACECAM
 
     process_video_pipeline(cli_input_path, cli_facecam_config)
-    
