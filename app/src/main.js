@@ -43,7 +43,7 @@ const PIPELINE_SCRIPT = path.join(ML_ROOT, 'pipeline.py')
 // For now hardcoded for testing; replace with dynamic path when ready
 const TEST_VIDEO_PATH = path.join(ML_ROOT, 'examples/test.mp4')
 
-function runProcessingPipeline(videoPath) {
+function runProcessingPipeline (videoPath) {
   const python = spawn('python', [PIPELINE_SCRIPT, videoPath])
 
   // Read stdout line by line and forward STAGE: messages to the renderer
@@ -60,8 +60,8 @@ function runProcessingPipeline(videoPath) {
         } else {
           // Map Python stage names to what the Dashboard expects
           const stageMap = {
-            'TRANSCRIBING': 'transcribing',
-            'FINALIZING': 'finalising',
+            TRANSCRIBING: 'transcribing',
+            FINALIZING: 'finalising'
           }
           const stage = stageMap[stageRaw] || stageRaw.toLowerCase()
           mainWindow.webContents.send('stage-update', stage)
