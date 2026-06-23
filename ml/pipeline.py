@@ -152,7 +152,9 @@ def process_video_pipeline(input_video_path, facecam_config="384:216:0:0"):
         )
         return None
 
-    srt_file_path = "temp_subs.srt"
+    # Dynamically find the absolute path of the "ml/" directory containing this script
+    ml_dir = os.path.dirname(os.path.abspath(__file__))
+    srt_file_path = os.path.join(ml_dir, "temp_subs.srt")
 
     try:
         # 1. Step One: Run AI Speech-to-Text Transcription
@@ -164,8 +166,9 @@ def process_video_pipeline(input_video_path, facecam_config="384:216:0:0"):
         create_srt_file(results, srt_file_path)
 
         # 3. Step Three: Burn Overlay into Destination Stream
-        output_dir = "finished_videos"
+        output_dir = os.path.join(ml_dir, "finished_videos")
         os.makedirs(output_dir, exist_ok=True)
+        
         base_name = os.path.basename(input_video_path)
         output_path = os.path.join(output_dir, f"polished_{base_name}")
 
