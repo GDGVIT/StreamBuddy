@@ -16,7 +16,7 @@ export default function App(){
     return(
         <>
             {user 
-                ? <Dashboard user={user} currentStage={currentStage} /> 
+                ? <Dashboard user={user} currentStage={currentStage} onLogout={() => setUser(null)} /> 
                 : <Auth onAuthSuccess={setUser}/>
             }
         </>

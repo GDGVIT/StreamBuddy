@@ -1,5 +1,5 @@
 /* global MAIN_WINDOW_VITE_DEV_SERVER_URL, MAIN_WINDOW_VITE_NAME */
-import { app, BrowserWindow, globalShortcut } from 'electron'
+import { app, BrowserWindow, globalShortcut, shell, ipcMain } from 'electron' // Added shell import
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import started from 'electron-squirrel-startup'
@@ -55,8 +55,9 @@ function runProcessingPipeline (videoPath) {
         const stageRaw = line.replace('STAGE:', '')
 
         if (stageRaw.startsWith('DONE:')) {
-          // Pipeline finished — clear the processing indicator
-          mainWindow.webContents.send('stage-update', null)
+          const finalVideoPath = stageRaw.replace('DONE:', '')
+          // Send completed status dictionary mapping back to renderer
+          mainWindow.webContents.send('stage-update', { status: 'completed', path: finalVideoPath })
         } else {
           // Map Python stage names to what the Dashboard expects
           const stageMap = {
@@ -95,6 +96,14 @@ app.whenReady().then(() => {
     // Then kick off the real Python pipeline
     // TODO: replace TEST_VIDEO_PATH with the actual OBS output path
     runProcessingPipeline(TEST_VIDEO_PATH)
+  })
+
+  // Secure listener context bridge to open folders safely without leaky paths
+  // Add this inside app.whenReady right alongside your shortcut setups
+  ipcMain.on('open-file-directory', (event, targetPath) => {
+    if (targetPath) {
+      shell.showItemInFolder(targetPath)
+    }
   })
 })
 
