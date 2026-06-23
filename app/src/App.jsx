@@ -1,5 +1,7 @@
+import Auth from "./components/Auth"
+
 export default function App(){
     return(
-        <h1>StreamBuddy</h1>
+        <Auth />
     )
 }
