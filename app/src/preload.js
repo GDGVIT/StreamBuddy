@@ -3,4 +3,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron'
 
-contextBridge.exposeInMainWorld('electronAPI', { onStageUpdate: (callback) => ipcRenderer.on('stage-update', callback) })
+contextBridge.exposeInMainWorld('electronAPI', {
+  onStageUpdate: (callback) => ipcRenderer.on('stage-update', callback),
+  openFileDirectory: (targetPath) => ipcRenderer.send('open-file-directory', targetPath)
+})
