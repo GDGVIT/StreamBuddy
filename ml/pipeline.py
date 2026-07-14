@@ -134,9 +134,16 @@ def burn_subtitles_to_video(
             command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
         absolute_output_path = os.path.abspath(video_output)
+
+        if not os.path.exists(absolute_output_path):
+            print(f"ERROR: Output file was not created: {absolute_output_path}", flush=True)
+            return None
+
         return absolute_output_path
     except subprocess.CalledProcessError as e:
         print("ERROR: FFmpeg subtitle injection failed.", flush=True)
+        print("STDERR:", e.stderr.decode("utf-8", errors="ignore"), flush=True)
+        print("STDOUT:", e.stdout.decode("utf-8", errors="ignore"), flush=True)
         return None
 
 
