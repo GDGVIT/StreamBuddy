@@ -24,5 +24,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   completeOnboarding: () => ipcRenderer.invoke('complete-onboarding'),
 
   // File system
-  openFileDirectory: (targetPath) => ipcRenderer.send('open-file-directory', targetPath),
+  openFileDirectory: (targetPath) => ipcRenderer.send('open-file-directory', targetPath)
 })
