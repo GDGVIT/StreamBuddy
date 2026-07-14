@@ -10,7 +10,6 @@ __pycache__/
 *.pyd
 
 # Video Output and Input Directories
-ml/raw_videos/
 ml/finished_videos/
 
 # Temporary files
