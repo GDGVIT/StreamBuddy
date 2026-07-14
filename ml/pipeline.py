@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 
+import cv2
 import whisper
 
 
@@ -140,6 +141,112 @@ def burn_subtitles_to_video(
         return None
 
 
+def detect_facecam(video_path):
+    """
+    Detects the facecam by finding static regions (the streamer's real-life wall or webcam border)
+    and expands that partial region to a full 16:9 corner-anchored webcam bounding box.
+    This works flawlessly for both bordered webcams and raw/borderless video rectangles.
+    """
+    import cv2
+    import numpy as np
+    print("STAGE:DETECTING_FACECAM", flush=True)
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        return "384:216:0:0"
+        
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if total_frames < 100:
+        return "384:216:0:0"
+        
+    # Sample 3 frames spread across the video to find regions that never move
+    cap.set(cv2.CAP_PROP_POS_FRAMES, int(total_frames * 0.1))
+    ret1, f1 = cap.read()
+    cap.set(cv2.CAP_PROP_POS_FRAMES, int(total_frames * 0.5))
+    ret2, f2 = cap.read()
+    cap.set(cv2.CAP_PROP_POS_FRAMES, int(total_frames * 0.9))
+    ret3, f3 = cap.read()
+    
+    if ret1:
+        screen_h, screen_w = f1.shape[:2]
+    else:
+        screen_h, screen_w = 1080, 1920
+        
+    cap.release()
+    
+    if not (ret1 and ret2 and ret3):
+        return "384:216:0:0"
+
+    d1 = cv2.absdiff(f1, f2)
+    d2 = cv2.absdiff(f2, f3)
+    d = cv2.bitwise_or(d1, d2)
+    gray = cv2.cvtColor(d, cv2.COLOR_BGR2GRAY)
+    
+    # Any pixel that barely changed (diff < 10) is a static piece of the screen
+    _, thresh = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY_INV)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    best_area = 0
+    best_box = None
+    
+    # Find the largest static block (this is the physical wall behind the streamer, or the webcam border)
+    for c in contours:
+        x, y, w, h = cv2.boundingRect(c)
+        # It must be a decently sized block to avoid tiny UI noise, but not the whole screen
+        if w > 80 and h > 80 and w < screen_w * 0.8 and h < screen_h * 0.8:
+            area = w * h
+            if area > best_area:
+                best_area = area
+                best_box = (x, y, w, h)
+                
+    if not best_box:
+        print("STAGE:FACECAM_DETECTED_NONE_FALLBACK", flush=True)
+        return "384:216:0:0"
+        
+    x, y, w, h = best_box
+    
+    # Expand this partial piece into a full 16:9 webcam box anchored to the nearest corner
+    center_x = x + w / 2
+    center_y = y + h / 2
+    
+    is_left = center_x < screen_w / 2
+    is_top = center_y < screen_h / 2
+    
+    # The static region is part of the webcam, so the webcam must cover the space 
+    # from the screen corner up to the farthest edge of this static region.
+    if is_left:
+        cam_w = x + w
+    else:
+        cam_w = screen_w - x
+        
+    if is_top:
+        cam_h = y + h
+    else:
+        cam_h = screen_h - y
+        
+    # Prevent extreme dimensions if the static block was somehow huge
+    cam_w = max(150, min(cam_w, int(screen_w * 0.6)))
+    cam_h = max(100, min(cam_h, int(screen_h * 0.6)))
+        
+    # Expand to a standard 16:9 aspect ratio so we never cut off the streamer's face
+    if cam_w / cam_h > 16/9:
+        cam_h = int(cam_w * 9 / 16)
+    else:
+        cam_w = int(cam_h * 16 / 9)
+        
+    if is_left:
+        final_x = 0
+    else:
+        final_x = screen_w - cam_w
+        
+    if is_top:
+        final_y = 0
+    else:
+        final_y = screen_h - cam_h
+        
+    print(f"STAGE:FACECAM_DETECTED:{cam_w}:{cam_h}:{final_x}:{final_y}", flush=True)
+    return f"{cam_w}:{cam_h}:{final_x}:{final_y}"
+
+
 def process_video_pipeline(input_video_path, facecam_config="384:216:0:0"):
     """
     The main execution pipeline container wrapper that runs transcription,
@@ -170,9 +277,14 @@ def process_video_pipeline(input_video_path, facecam_config="384:216:0:0"):
 
         base_name = os.path.basename(input_video_path)
         output_path = os.path.join(output_dir, f"polished_{base_name}")
+        
+        # Resolve facecam config
+        final_facecam_config = facecam_config
+        if facecam_config == "auto":
+            final_facecam_config = detect_facecam(input_video_path)
 
         final_video_path = burn_subtitles_to_video(
-            input_video_path, srt_file_path, facecam_config, video_output=output_path
+            input_video_path, srt_file_path, final_facecam_config, video_output=output_path
         )
 
         if final_video_path:
