@@ -26,13 +26,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // File system
   openFileDirectory: (targetPath) => ipcRenderer.send('open-file-directory', targetPath),
-  
+
   exportClip: (finalPath, destFolder) => ipcRenderer.invoke('export-clip', finalPath, destFolder),
 
   getClipDuration: () => ipcRenderer.invoke('get-clip-duration'),
 
   setClipDuration: (seconds) => ipcRenderer.invoke('set-clip-duration', seconds),
-  
+
   deleteAccount: (accessToken) => ipcRenderer.invoke('delete-account', accessToken),
 
   setAppReady: (ready) => ipcRenderer.send('set-app-ready', ready),

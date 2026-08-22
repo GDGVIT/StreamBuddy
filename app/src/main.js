@@ -1,5 +1,4 @@
 import { config } from 'dotenv'
-config({ path: '.env.local' })
 
 /* global MAIN_WINDOW_VITE_DEV_SERVER_URL, MAIN_WINDOW_VITE_NAME */
 import { app, BrowserWindow, globalShortcut, shell, ipcMain, dialog, session, protocol, net } from 'electron'
@@ -9,6 +8,8 @@ import { spawn } from 'node:child_process'
 import started from 'electron-squirrel-startup'
 import Store from 'electron-store'
 import { OBSWebSocket } from 'obs-websocket-js'
+
+config({ path: '.env.local' })
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'clip', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
@@ -103,12 +104,13 @@ const createWindow = () => {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
-      contextIsolation: true 
+      contextIsolation: true
     }
   })
 
   // Allow all requests through — fixes Supabase ERR_NAME_NOT_RESOLVED in dev
   mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
+    // eslint-disable-next-line n/no-callback-literal
     callback({
       requestHeaders: {
         ...details.requestHeaders,
@@ -118,6 +120,7 @@ const createWindow = () => {
   })
 
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    // eslint-disable-next-line n/no-callback-literal
     callback({
       responseHeaders: {
         ...details.responseHeaders,
@@ -244,10 +247,12 @@ app.whenReady().then(async () => {
   // Allow all network requests globally before window is created
 
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    // eslint-disable-next-line n/no-callback-literal
     callback({ requestHeaders: details.requestHeaders })
   })
 
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    // eslint-disable-next-line n/no-callback-literal
     callback(true)
   })
 
