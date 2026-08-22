@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { CheckCircle2, Loader2, FolderOpen, Keyboard } from 'lucide-react'
+import robot from '../assets/robot.svg'
 
 const STEPS = [
   { key: 'obs',     label: 'OBS Connection',     desc: 'Connect StreamBuddy to OBS Studio and verify your replay buffer is ready for capturing clips.' },
@@ -67,7 +68,7 @@ function OBSStep ({ onNext }) {
       <div>
         <h2 className="text-3xl font-semibold text-slate-100 underline underline-offset-4 mb-2">Connect OBS Studio</h2>
         <p className="text-slate-400 text-sm leading-relaxed">
-          We'll automatically detect OBS Studio and verify that everything is ready for capturing clips.
+          We&apos;ll automatically detect OBS Studio and verify that everything is ready for capturing clips.
         </p>
       </div>
 
@@ -101,6 +102,21 @@ function OBSStep ({ onNext }) {
           )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {status === 'failed' && (
+          <motion.img
+            key="robot"
+            src={robot}
+            alt=""
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 40 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="fixed top-1/2 right-85 -translate-y-1/2 w-80 h-80 object-contain opacity-80 pointer-events-none"
+          />
+        )}
+      </AnimatePresence>
 
       <div className="flex gap-3 mt-2">
         {status === 'idle' && (
@@ -172,7 +188,7 @@ function HotkeyStep ({ onNext }) {
       <div>
         <h2 className="text-3xl font-semibold text-slate-100 underline underline-offset-4 mb-2">Configure Hotkey</h2>
         <p className="text-slate-400 text-sm leading-relaxed">
-          Choose the keyboard shortcut used to instantly capture clips while you're streaming.
+          Choose the keyboard shortcut used to instantly capture clips while you&apos;re streaming.
         </p>
       </div>
 
@@ -182,7 +198,7 @@ function HotkeyStep ({ onNext }) {
         <div
           onClick={() => { setListening(true); setSaved(false) }}
           className={`
-            w-fit min-w-[120px] px-6 py-2.5 rounded-xl border text-center text-slate-100 font-mono text-lg cursor-pointer transition-all duration-200
+            w-fit min-w-30 px-6 py-2.5 rounded-xl border text-center text-slate-100 font-mono text-lg cursor-pointer transition-all duration-200
             ${listening
               ? 'border-indigo-400 bg-indigo-500/10 text-indigo-300'
               : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
@@ -294,10 +310,10 @@ export default function Onboarding ({ onComplete }) {
 
   return (
     <div className="min-h-screen w-full bg-slate-900 flex items-center justify-center p-3">
-      <div className="relative w-full h-[calc(100vh-1.5rem)] bg-gradient-to-br from-slate-800 to-slate-950 rounded-2xl overflow-hidden flex">
+      <div className="relative w-full h-[calc(100vh-1.5rem)] bg-linear-to-br from-slate-800 to-slate-950 rounded-2xl overflow-hidden flex">
 
         {/* Left sidebar */}
-        <div className="w-[380px] shrink-0 border-r border-slate-700/50 bg-slate-900/40 p-10 flex flex-col justify-between">
+        <div className="w-95 shrink-0 border-r border-slate-700/50 bg-slate-900/40 p-10 flex flex-col justify-between">
           <div>
             {/* Logo */}
             <div className="flex items-center gap-2 mb-12">
