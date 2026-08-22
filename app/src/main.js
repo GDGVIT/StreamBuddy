@@ -1,6 +1,4 @@
 import { config } from 'dotenv'
-
-/* global MAIN_WINDOW_VITE_DEV_SERVER_URL, MAIN_WINDOW_VITE_NAME */
 import { app, BrowserWindow, globalShortcut, shell, ipcMain, dialog, session, protocol, net } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -8,6 +6,8 @@ import { spawn } from 'node:child_process'
 import started from 'electron-squirrel-startup'
 import Store from 'electron-store'
 import { OBSWebSocket } from 'obs-websocket-js'
+
+/* global MAIN_WINDOW_VITE_DEV_SERVER_URL, MAIN_WINDOW_VITE_NAME */
 
 config({ path: '.env.local' })
 
@@ -109,6 +109,7 @@ const createWindow = () => {
   })
 
   // Allow all requests through — fixes Supabase ERR_NAME_NOT_RESOLVED in dev
+  // eslint-disable-next-line n/no-callback-literal
   mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
     // eslint-disable-next-line n/no-callback-literal
     callback({
@@ -118,7 +119,7 @@ const createWindow = () => {
       }
     })
   })
-
+  // eslint-disable-next-line n/no-callback-literal
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     // eslint-disable-next-line n/no-callback-literal
     callback({
@@ -246,11 +247,13 @@ function registerHotkey (key) {
 app.whenReady().then(async () => {
   // Allow all network requests globally before window is created
 
+  // eslint-disable-next-line n/no-callback-literal
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
     // eslint-disable-next-line n/no-callback-literal
     callback({ requestHeaders: details.requestHeaders })
   })
 
+  // eslint-disable-next-line n/no-callback-literal
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     // eslint-disable-next-line n/no-callback-literal
     callback(true)
