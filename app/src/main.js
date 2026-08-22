@@ -1,4 +1,5 @@
 /* global MAIN_WINDOW_VITE_DEV_SERVER_URL, MAIN_WINDOW_VITE_NAME */
+/* eslint-disable n/no-callback-literal */
 import { app, BrowserWindow, globalShortcut, shell, ipcMain, dialog, session } from 'electron'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
@@ -20,7 +21,7 @@ const store = new Store({
     hotkey: 'F5',
     outputFolder: '',
     obsConnected: false,
-    onboardingComplete: false,
+    onboardingComplete: false
   }
 })
 
@@ -85,7 +86,7 @@ const createWindow = () => {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
-      contextIsolation: true,
+      contextIsolation: true
     }
   })
 
@@ -94,7 +95,7 @@ const createWindow = () => {
     callback({
       requestHeaders: {
         ...details.requestHeaders,
-        Origin: '*',
+        Origin: '*'
       }
     })
   })
@@ -104,7 +105,7 @@ const createWindow = () => {
       responseHeaders: {
         ...details.responseHeaders,
         'Access-Control-Allow-Origin': ['*'],
-        'Access-Control-Allow-Headers': ['*'],
+        'Access-Control-Allow-Headers': ['*']
       }
     })
   })
@@ -183,7 +184,6 @@ function registerHotkey(key) {
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
-
   // Allow all network requests globally before window is created
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
     callback({ requestHeaders: details.requestHeaders })
@@ -212,7 +212,7 @@ app.whenReady().then(async () => {
     complete: store.get('onboardingComplete'),
     hotkey: store.get('hotkey'),
     outputFolder: store.get('outputFolder'),
-    obsConnected,
+    obsConnected
   }))
 
   ipcMain.handle('connect-obs', async () => await connectToOBS())
