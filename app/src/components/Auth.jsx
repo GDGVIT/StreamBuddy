@@ -134,6 +134,14 @@ export default function Auth({ onAuthSuccess }){
     const [user, setUser] = useState(null)
     const [session, setSession] = useState(null)
 
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data }) => {
+            if (data.session) {
+                onAuthSuccess(data.session.user, data.session)
+            }
+        })
+    }, [])
+
     function toggleView(){
         setIsLogin(!isLogin)
     }

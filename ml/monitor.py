@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from typing import ClassVar
 
 from watchdog.events import PatternMatchingEventHandler
 from watchdog.observers import Observer
@@ -10,6 +11,7 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+logger = logging.getLogger(__name__)
 
 # Import your existing pipeline functions
 # Assumes your pipeline.py has a main execution function we can call
@@ -18,17 +20,17 @@ from pipeline import process_video_pipeline
 
 class OBSFolderHandler(PatternMatchingEventHandler):
     # Watch only for finished MP4 files
-    patterns = ["*.mp4"]
+    patterns: ClassVar[list[str]] = ["*.mp4"]
 
     def on_created(self, event):
-        logging.info(f"New file detected by watchdog: {event.src_path}")
+        logger.info(f"New file detected by watchdog: {event.src_path}")
 
         # CRITICAL: OBS takes a few seconds to finish writing the video stream to disk.
         # We check the file size progressively until it stops growing to ensure it's fully closed.
         file_path = event.src_path
         historical_size = -1
 
-        logging.info("Waiting for OBS to finish writing file to disk...")
+        logger.info("Waiting for OBS to finish writing file to disk...")
         while True:
             time.sleep(1)  # Check size every second
             try:
@@ -40,7 +42,7 @@ class OBSFolderHandler(PatternMatchingEventHandler):
                 # Handle edge cases where temp files are rapidly created/deleted
                 return
 
-        logging.info(
+        logger.info(
             f"File fully stable ({historical_size} bytes). Triggering processing pipeline!"
         )
 
@@ -59,13 +61,13 @@ if __name__ == "__main__":
     observer = Observer()
     observer.schedule(event_handler, path=WATCH_DIRECTORY, recursive=False)
 
-    logging.info(f"Watchdog active! Monitoring folder: {WATCH_DIRECTORY}")
+    logger.info(f"Watchdog active! Monitoring folder: {WATCH_DIRECTORY}")
     observer.start()
 
     try:
         while True:
             time.sleep(1)  # Keeps the main thread alive running in the background
     except KeyboardInterrupt:
-        logging.info("Stopping folder monitor watchdog.")
+        logger.info("Stopping folder monitor watchdog.")
         observer.stop()
     observer.join()

@@ -1,11 +1,18 @@
+import { config } from 'dotenv'
+config({ path: '.env.local' })
+
 /* global MAIN_WINDOW_VITE_DEV_SERVER_URL, MAIN_WINDOW_VITE_NAME */
-/* eslint-disable n/no-callback-literal */
-import { app, BrowserWindow, globalShortcut, shell, ipcMain, dialog, session } from 'electron'
+import { app, BrowserWindow, globalShortcut, shell, ipcMain, dialog, session, protocol, net } from 'electron'
 import path from 'node:path'
+import fs from 'node:fs'
 import { spawn } from 'node:child_process'
 import started from 'electron-squirrel-startup'
 import Store from 'electron-store'
 import { OBSWebSocket } from 'obs-websocket-js'
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'clip', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+])
 
 if (started) app.quit()
 
@@ -21,7 +28,8 @@ const store = new Store({
     hotkey: 'F5',
     outputFolder: '',
     obsConnected: false,
-    onboardingComplete: false
+    onboardingComplete: false,
+    clipDuration: 60
   }
 })
 
@@ -34,6 +42,14 @@ async function connectToOBS () {
     await obs.connect('ws://127.0.0.1:4455')
     obsConnected = true
     store.set('obsConnected', true)
+
+    const savedDuration = store.get('clipDuration')
+
+    await obs.call('SetProfileParameter', {
+      parameterCategory: 'SimpleOutput',
+      parameterName: 'RecRBTime',
+      parameterValue: String(savedDuration)
+    })
 
     // Auto-start replay buffer if it isn't already running
     const { outputActive } = await obs.call('GetReplayBufferStatus')
@@ -56,6 +72,7 @@ async function saveReplayBuffer () {
   if (!obsConnected) {
     throw new Error('OBS is not connected')
   }
+
   try {
     await obs.call('SaveReplayBuffer')
 
@@ -86,7 +103,7 @@ const createWindow = () => {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true 
     }
   })
 
@@ -124,8 +141,12 @@ const APP_ROOT = app.getAppPath()
 const ML_ROOT = path.join(APP_ROOT, '../ml')
 const PIPELINE_SCRIPT = path.join(ML_ROOT, 'pipeline.py')
 
+const DEFAULT_FACECAM = '384:216:0:0'
+
 function runProcessingPipeline (videoPath) {
-  const python = spawn('python', [PIPELINE_SCRIPT, videoPath])
+  const outputFolder = store.get('outputFolder') || ''
+  currentPythonProcess = spawn('python', [PIPELINE_SCRIPT, videoPath, DEFAULT_FACECAM, outputFolder])
+  const python = currentPythonProcess
 
   python.stdout.on('data', (data) => {
     const lines = data.toString().split('\n')
@@ -137,12 +158,20 @@ function runProcessingPipeline (videoPath) {
 
       if (stageRaw.startsWith('DONE:')) {
         const finalVideoPath = stageRaw.replace('DONE:', '')
+        isProcessing = false
         mainWindow.webContents.send('stage-update', { status: 'completed', path: finalVideoPath })
+      } else if (stageRaw.startsWith('ERROR:')) {
+        const errMsg = stageRaw.replace('ERROR:', '')
+        isProcessing = false
+        mainWindow.webContents.send('pipeline-error', errMsg)
+        mainWindow.webContents.send('obs-error', errMsg)
+        mainWindow.webContents.send('stage-update', null)
       } else {
         const stageMap = {
           TRANSCRIBING: 'transcribing',
           FINALIZING: 'finalising'
         }
+
         const stage = stageMap[stageRaw] || stageRaw.toLowerCase()
         mainWindow.webContents.send('stage-update', stage)
       }
@@ -158,16 +187,43 @@ function runProcessingPipeline (videoPath) {
   })
 }
 
+let appReady = false
+let currentPythonProcess = null
+let isProcessing = false
+
 // ── Hotkey registration ───────────────────────────────────────────────────────
 function registerHotkey (key) {
   globalShortcut.unregisterAll()
 
   globalShortcut.register(key, async () => {
+    if (!appReady) return
+
+    if (isProcessing) {
+      // cancel: kill the running python process if you store its handle
+      if (currentPythonProcess) currentPythonProcess.kill()
+      isProcessing = false
+      mainWindow.webContents.send('stage-update', null)
+
+      // Clean up any partial artifacts left behind by the interrupted run
+      const tempSrtPath = path.join(ML_ROOT, 'temp_subs.srt')
+      if (fs.existsSync(tempSrtPath)) {
+        fs.promises.unlink(tempSrtPath).catch(() => {})
+      }
+      return
+    }
+
     if (!obsConnected) {
       mainWindow.webContents.send('obs-error', 'OBS is not connected. Please reconnect in settings.')
       return
     }
 
+    const outputFolder = store.get('outputFolder')
+    if (!outputFolder || !fs.existsSync(outputFolder)) {
+      mainWindow.webContents.send('output-folder-missing')
+      return
+    }
+
+    isProcessing = true
     mainWindow.webContents.send('stage-update', 'clipping')
 
     try {
@@ -175,6 +231,7 @@ function registerHotkey (key) {
       console.log('Replay saved to:', replayPath)
       runProcessingPipeline(replayPath)
     } catch (err) {
+      isProcessing = false
       console.error('Replay buffer error:', err.message)
       mainWindow.webContents.send('obs-error', err.message)
       mainWindow.webContents.send('stage-update', null)
@@ -185,12 +242,19 @@ function registerHotkey (key) {
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
   // Allow all network requests globally before window is created
+
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
     callback({ requestHeaders: details.requestHeaders })
   })
 
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     callback(true)
+  })
+
+  protocol.handle('clip', (request) => {
+    const filePath = decodeURIComponent(request.url.replace('clip://', ''))
+    const encodedPath = encodeURI(filePath)
+    return net.fetch(`file:///${encodedPath}`)
   })
 
   createWindow()
@@ -232,22 +296,108 @@ app.whenReady().then(async () => {
       properties: ['openDirectory'],
       title: 'Select Output Folder for Clips'
     })
+
     if (!result.canceled && result.filePaths.length > 0) {
       store.set('outputFolder', result.filePaths[0])
       return { success: true, path: result.filePaths[0] }
     }
+
     return { success: false }
   })
 
   ipcMain.handle('get-output-folder', () => store.get('outputFolder'))
+
+  ipcMain.handle('export-clip', async (event, finalPath, destFolder) => {
+    try {
+      const dest = path.join(destFolder, path.basename(finalPath))
+      await fs.promises.copyFile(finalPath, dest)
+      return { success: true, path: dest }
+    } catch (err) {
+      console.error('Export failed:', err.message)
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('delete-clips', async (event, filePaths) => {
+    const results = []
+    for (const filePath of filePaths) {
+      try {
+        await fs.promises.unlink(filePath)
+        results.push({ path: filePath, success: true })
+      } catch (err) {
+        results.push({ path: filePath, success: false, error: err.message })
+      }
+    }
+    return results
+  })
+
+  ipcMain.handle('rename-clip', async (event, oldPath, newName) => {
+    try {
+      const dir = path.dirname(oldPath)
+      const ext = path.extname(oldPath)
+      const newPath = path.join(dir, `${newName}${ext}`)
+      await fs.promises.rename(oldPath, newPath)
+      return { success: true, path: newPath }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
 
   ipcMain.handle('complete-onboarding', () => {
     store.set('onboardingComplete', true)
     return { success: true }
   })
 
+  ipcMain.handle('get-clip-duration', () => store.get('clipDuration'))
+
+  ipcMain.handle('set-clip-duration', async (event, seconds) => {
+    store.set('clipDuration', seconds)
+
+    if (obsConnected) {
+      try {
+        await obs.call('SetProfileParameter', {
+          parameterCategory: 'SimpleOutput',
+          parameterName: 'RecRBTime',
+          parameterValue: String(seconds)
+        })
+
+        const { outputActive } = await obs.call('GetReplayBufferStatus')
+
+        if (outputActive) {
+          await obs.call('StopReplayBuffer')
+          await obs.call('StartReplayBuffer')
+        }
+      } catch (err) {
+        console.error('Failed to update OBS replay duration:', err.message)
+        return { success: false, error: err.message }
+      }
+    }
+
+    return { success: true, clipDuration: seconds }
+  })
+
+  ipcMain.handle('delete-account', async (event, accessToken) => {
+    try {
+      const res = await fetch(`${process.env.VITE_SUPABASE_URL}/functions/v1/delete-account`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
+
+      if (!res.ok) throw new Error(await res.text())
+
+      store.clear() // wipe local hotkey/outputFolder/clipDuration/onboarding state
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
   ipcMain.on('open-file-directory', (event, targetPath) => {
     if (targetPath) shell.showItemInFolder(targetPath)
+  })
+
+  ipcMain.on('set-app-ready', (event, ready) => {
+    appReady = ready
   })
 })
 

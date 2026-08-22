@@ -2,20 +2,33 @@ import { useEffect, useState } from "react"
 import Auth from "./components/Auth"
 import Dashboard from "./components/Dashboard"
 import Onboarding from "./components/Onboarding"
+import NamingStep from "./components/NamingStep"
 import './index.css'
 
-// app state: 'loading' | 'auth' | 'onboarding' | 'dashboard'
+// app state: 'loading' | 'auth' | 'onboarding' | 'naming' | 'dashboard'
 
 export default function App () {
   const [appState, setAppState] = useState('loading')
   const [user, setUser] = useState(null)
+  const [username, setUsername] = useState('')
   const [currentStage, setCurrentStage] = useState(null)
 
   // Check onboarding status once user logs in
   async function handleAuthSuccess (loggedInUser) {
     setUser(loggedInUser)
+    setUsername(loggedInUser?.user_metadata?.username || '')
     const status = await window.electronAPI.getOnboardingStatus()
-    setAppState(status.complete ? 'dashboard' : 'onboarding')
+    if (!status.complete) {
+      setAppState('onboarding')
+    } else if (!loggedInUser?.user_metadata?.username) {
+      setAppState('naming')
+    } else {
+      setAppState('dashboard')
+    }
+  }
+
+  function handleOnboardingComplete () {
+    setAppState(username ? 'dashboard' : 'naming')
   }
 
   useEffect(() => {
@@ -49,12 +62,18 @@ export default function App () {
       )}
 
       {appState === 'onboarding' && (
-        <Onboarding onComplete={() => setAppState('dashboard')} />
+        <Onboarding onComplete={handleOnboardingComplete} />
+      )}
+
+      {appState === 'naming' && (
+        <NamingStep onDone={(name) => { setUsername(name); setAppState('dashboard') }} />
       )}
 
       {appState === 'dashboard' && (
         <Dashboard
           user={user}
+          username={username}
+          onUsernameChange={setUsername}
           currentStage={currentStage}
           onLogout={() => {
             setUser(null)

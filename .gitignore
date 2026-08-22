@@ -11,12 +11,18 @@ __pycache__/
 
 # Video Output and Input Directories
 ml/finished_videos/
+ml/raw_videos/
 
 # Temporary files
 *.srt
 *.log
 temp_subs.srt
+.vscode
 
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Dependency directories
+node_modules/
+supabase/
