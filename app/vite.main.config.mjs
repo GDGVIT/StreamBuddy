@@ -5,7 +5,6 @@ export default defineConfig({
   build: {
     rollupOptions: {
       external: [
-        'bufferutil',
         'utf-8-validate',
         'electron-store',
         'obs-websocket-js',
