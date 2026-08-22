@@ -28,7 +28,7 @@ const store = new Store({
 const obs = new OBSWebSocket()
 let obsConnected = false
 
-async function connectToOBS () {
+async function connectToOBS() {
   try {
     await obs.connect('ws://127.0.0.1:4455')
     obsConnected = true
@@ -51,7 +51,7 @@ async function connectToOBS () {
 }
 
 // Save the OBS replay buffer and return the file path
-async function saveReplayBuffer () {
+async function saveReplayBuffer() {
   if (!obsConnected) {
     throw new Error('OBS is not connected')
   }
@@ -123,7 +123,7 @@ const APP_ROOT = app.getAppPath()
 const ML_ROOT = path.join(APP_ROOT, '../ml')
 const PIPELINE_SCRIPT = path.join(ML_ROOT, 'pipeline.py')
 
-function runProcessingPipeline (videoPath) {
+function runProcessingPipeline(videoPath) {
   const python = spawn('python', [PIPELINE_SCRIPT, videoPath])
 
   python.stdout.on('data', (data) => {
@@ -158,7 +158,7 @@ function runProcessingPipeline (videoPath) {
 }
 
 // ── Hotkey registration ───────────────────────────────────────────────────────
-function registerHotkey (key) {
+function registerHotkey(key) {
   globalShortcut.unregisterAll()
 
   globalShortcut.register(key, async () => {
