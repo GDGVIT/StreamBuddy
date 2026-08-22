@@ -137,7 +137,10 @@ def burn_subtitles_to_video(
         absolute_output_path = os.path.abspath(video_output)
 
         if not os.path.exists(absolute_output_path):
-            print(f"ERROR: Output file was not created: {absolute_output_path}", flush=True)
+            print(
+                f"ERROR: Output file was not created: {absolute_output_path}",
+                flush=True,
+            )
             return None
 
         return absolute_output_path
