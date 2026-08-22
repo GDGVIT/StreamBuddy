@@ -109,9 +109,9 @@ const createWindow = () => {
   })
 
   // Allow all requests through — fixes Supabase ERR_NAME_NOT_RESOLVED in dev
-  // eslint-disable-next-line n/no-callback-literal
+  // eslint-disable-next-line
   mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
-    // eslint-disable-next-line n/no-callback-literal
+    // eslint-disable-next-line
     callback({
       requestHeaders: {
         ...details.requestHeaders,
@@ -119,9 +119,9 @@ const createWindow = () => {
       }
     })
   })
-  // eslint-disable-next-line n/no-callback-literal
+  // eslint-disable-next-line
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-    // eslint-disable-next-line n/no-callback-literal
+    // eslint-disable-next-line
     callback({
       responseHeaders: {
         ...details.responseHeaders,
@@ -247,15 +247,15 @@ function registerHotkey (key) {
 app.whenReady().then(async () => {
   // Allow all network requests globally before window is created
 
-  // eslint-disable-next-line n/no-callback-literal
+  // eslint-disable-next-line
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    // eslint-disable-next-line n/no-callback-literal
+    // eslint-disable-next-line
     callback({ requestHeaders: details.requestHeaders })
   })
 
-  // eslint-disable-next-line n/no-callback-literal
+  // eslint-disable-next-line
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    // eslint-disable-next-line n/no-callback-literal
+    // eslint-disable-next-line
     callback(true)
   })
 
