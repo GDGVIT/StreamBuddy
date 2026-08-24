@@ -28,8 +28,14 @@ def format_timestamp(seconds):
 def create_srt_file(whisper_results, output_srt_path="temp_subs.srt"):
     """Parses raw Whisper segments and writes them to a standard SubRip (.srt) file in 3-word chunks."""
     with open(output_srt_path, "w", encoding="utf-8") as f:
+        segments = whisper_results.get("segments", [])
+        if not segments:
+            # If no speech is detected, write a dummy blank subtitle to prevent FFmpeg crashes
+            f.write("1\n00:00:00,000 --> 00:00:01,000\n \n\n")
+            return
+            
         counter = 1
-        for segment in whisper_results.get("segments", []):
+        for segment in segments:
             words = segment.get("words", [])
             if not words:
                 start_str = format_timestamp(segment["start"])
@@ -89,8 +95,10 @@ def burn_subtitles_to_video(
     """
     print("STAGE:FINALIZING", flush=True)
 
-    # Sanitize Windows paths for FFmpeg's internal string parsing engine
-    srt_path_fixed = srt_input.replace("\\", "/").replace(":", "\\:")
+    # FFmpeg subtitles filter on Windows frequently fails to parse absolute paths with drive letters.
+    # Convert to a relative path and sanitize slashes to bypass the parsing bug safely.
+    rel_srt = os.path.relpath(srt_input, os.getcwd())
+    srt_path_fixed = rel_srt.replace("\\", "/").replace(":", "\\:")
 
     # Subtitle styling constraints (Impact font, White base color, shifted into the bottom blank space)
     sub_style = "FontName=Impact,Alignment=2,MarginV=80,FontSize=16,PrimaryColour=&H00FFFFFF&,Outline=2,Shadow=1,OutlineColour=&H00000000&"
@@ -100,8 +108,8 @@ def burn_subtitles_to_video(
         "[0:v]scale=-1:1920,crop=1080:1920,gblur=sigma=20[bg];"
         # 2. Webcam Slicing: Crop facecam dynamically, scale up for visibility
         f"[0:v]crop={facecam_crop},scale=900:-1[cam];"
-        # 3. Gameplay Slicing: Center crop (1080x1080 at x=420) to keep crosshair & hotbar perfectly centered
-        "[0:v]crop=1080:1080:420:0[game];"
+        # 3. Gameplay Slicing: Center crop to keep crosshair & hotbar perfectly centered
+        "[0:v]crop=ih:ih:(iw-ih)/2:0,scale=1080:1080[game];"
         # 4. Compositing: Overlay gameplay centrally on background
         "[bg][game]overlay=(W-w)/2:(H-h)/2[bg_game];"
         # 5. Compositing: Overlay webcam near the top (y=50)
@@ -257,6 +265,74 @@ def detect_facecam(video_path):
     return f"{cam_w}:{cam_h}:{final_x}:{final_y}"
 
 
+def get_obs_facecam_crop():
+    """Reads OBS Studio profiles/scenes to find the exact facecam position."""
+    import os
+    import json
+    try:
+        appdata = os.getenv("APPDATA")
+        if not appdata: return None
+        
+        obs_dir = os.path.join(appdata, "obs-studio")
+        
+        current_collection = "Untitled"
+        for ini_file in ["global.ini", "user.ini"]:
+            ini_path = os.path.join(obs_dir, ini_file)
+            if os.path.exists(ini_path):
+                with open(ini_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("SceneCollection="):
+                            current_collection = line.strip().split("=", 1)[1]
+                            break
+                        
+        json_path = os.path.join(obs_dir, "basic", "scenes", f"{current_collection}.json")
+        if not os.path.exists(json_path): return None
+        
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            
+        current_scene = data.get("current_program_scene") or data.get("current_scene")
+        scene_source = next((s for s in data.get("sources", []) if s.get("name") == current_scene), None)
+        if not scene_source: return None
+        
+        items = scene_source.get("settings", {}).get("items", [])
+        
+        cam_item = None
+        for item in items:
+            name = item.get("name", "").lower()
+            if "cam" in name or "webcam" in name or "facecam" in name or "video capture device" in name:
+                cam_item = item
+                break
+                
+        if not cam_item:
+            print("STAGE:OBS_PROFILE_NO_CAM_FOUND", flush=True)
+            return None
+            
+        pos_x = int(cam_item.get("pos", {}).get("x", 0))
+        pos_y = int(cam_item.get("pos", {}).get("y", 0))
+        
+        scale_x = abs(cam_item.get("scale", {}).get("x", 1.0))
+        scale_y = abs(cam_item.get("scale", {}).get("y", 1.0))
+        
+        ref_x = cam_item.get("scale_ref", {}).get("x", 1920.0)
+        ref_y = cam_item.get("scale_ref", {}).get("y", 1080.0)
+        
+        crop_left = cam_item.get("crop_left", 0)
+        crop_right = cam_item.get("crop_right", 0)
+        crop_top = cam_item.get("crop_top", 0)
+        crop_bottom = cam_item.get("crop_bottom", 0)
+        
+        w = int((ref_x - crop_left - crop_right) * scale_x)
+        h = int((ref_y - crop_top - crop_bottom) * scale_y)
+        
+        print(f"STAGE:OBS_PROFILE_CAM_DETECTED:{w}:{h}:{pos_x}:{pos_y}", flush=True)
+        return f"{w}:{h}:{pos_x}:{pos_y}"
+        
+    except Exception as e:
+        print(f"STAGE:OBS_PROFILE_ERROR:{e}", flush=True)
+        return None
+
+
 def process_video_pipeline(input_video_path, facecam_config="384:216:0:0"):
     """
     The main execution pipeline container wrapper that runs transcription,
@@ -291,7 +367,9 @@ def process_video_pipeline(input_video_path, facecam_config="384:216:0:0"):
         # Resolve facecam config
         final_facecam_config = facecam_config
         if facecam_config == "auto":
-            final_facecam_config = detect_facecam(input_video_path)
+            final_facecam_config = get_obs_facecam_crop()
+            if not final_facecam_config:
+                final_facecam_config = detect_facecam(input_video_path)
 
         final_video_path = burn_subtitles_to_video(
             input_video_path, srt_file_path, final_facecam_config, video_output=output_path
