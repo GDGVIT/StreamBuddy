@@ -315,6 +315,10 @@ function DeleteConfirmModal ({ count, onCancel, onConfirm, deleting }) {
     )
 }
 
+function toClipUrl (rawPath) {
+    return `clip://local/?path=${encodeURIComponent(rawPath)}`
+}
+
 // ── Clip player modal ─────────────────────────────────────────────────────────
 function ClipPlayerModal ({ clip, onDismiss }) {
     return (
@@ -329,7 +333,7 @@ function ClipPlayerModal ({ clip, onDismiss }) {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.93, y: 12 }}
                 transition={{ duration: 0.25 }}
-                className="relative bg-slate-900 rounded-2xl p-4 w-[70vw] h-[70vh] flex items-center justify-center"
+                className="relative bg-slate-900 rounded-2xl p-3 h-[85vh] aspect-9/16 flex items-center justify-center"
             >
                 <button
                     onClick={onDismiss}
@@ -337,7 +341,7 @@ function ClipPlayerModal ({ clip, onDismiss }) {
                 >
                     <X className="w-4 h-4" />
                 </button>
-                <video src={`clip://${clip.path.replace(/\\/g, '/')}`} controls autoPlay className="w-full h-full object-contain rounded-xl" />
+                <video src={toClipUrl(clip.path)} controls autoPlay className="w-full h-full object-contain rounded-xl" />
             </motion.div>
         </motion.div>
     )

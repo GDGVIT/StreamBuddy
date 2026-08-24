@@ -21,8 +21,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onOutputFolderMissing: (callback) => ipcRenderer.on('output-folder-missing', callback),
 
   // Onboarding
-  getOnboardingStatus: () => ipcRenderer.invoke('get-onboarding-status'),
-  completeOnboarding: () => ipcRenderer.invoke('complete-onboarding'),
+  getOnboardingStatus: (userId) => ipcRenderer.invoke('get-onboarding-status', userId),
+  completeOnboarding: (userId) => ipcRenderer.invoke('complete-onboarding', userId),
 
   // File system
   openFileDirectory: (targetPath) => ipcRenderer.send('open-file-directory', targetPath),
