@@ -3,6 +3,7 @@ import Auth from "./components/Auth"
 import Dashboard from "./components/Dashboard"
 import Onboarding from "./components/Onboarding"
 import NamingStep from "./components/NamingStep"
+import supabase from "./lib/supabase"
 import './index.css'
 
 // app state: 'loading' | 'auth' | 'onboarding' | 'naming' | 'dashboard'
@@ -17,7 +18,7 @@ export default function App () {
   async function handleAuthSuccess (loggedInUser) {
     setUser(loggedInUser)
     setUsername(loggedInUser?.user_metadata?.username || '')
-    const status = await window.electronAPI.getOnboardingStatus()
+    const status = await window.electronAPI.getOnboardingStatus(loggedInUser.id)
     if (!status.complete) {
       setAppState('onboarding')
     } else if (!loggedInUser?.user_metadata?.username) {
@@ -62,7 +63,7 @@ export default function App () {
       )}
 
       {appState === 'onboarding' && (
-        <Onboarding onComplete={handleOnboardingComplete} />
+        <Onboarding user={user} onComplete={handleOnboardingComplete} />
       )}
 
       {appState === 'naming' && (
@@ -75,8 +76,10 @@ export default function App () {
           username={username}
           onUsernameChange={setUsername}
           currentStage={currentStage}
-          onLogout={() => {
+          onLogout={async () => {
+            await supabase.auth.signOut()
             setUser(null)
+            setUsername('')
             setAppState('auth')
           }}
         />

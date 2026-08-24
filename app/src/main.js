@@ -1,7 +1,9 @@
 import { config } from 'dotenv'
-import { app, BrowserWindow, globalShortcut, shell, ipcMain, dialog, session, protocol, net } from 'electron'
+import { app, BrowserWindow, globalShortcut, shell, ipcMain, dialog, session, protocol } from 'electron'
 import path from 'node:path'
-import fs from 'node:fs'
+import fs, { createReadStream } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import { Readable } from 'node:stream'
 import { spawn } from 'node:child_process'
 import started from 'electron-squirrel-startup'
 import Store from 'electron-store'
@@ -29,10 +31,15 @@ const store = new Store({
     hotkey: 'F5',
     outputFolder: '',
     obsConnected: false,
-    onboardingComplete: false,
+    onboardingComplete: {},
     clipDuration: 60
   }
 })
+
+// One-time migration: earlier builds stored onboardingComplete as a flat boolean
+if (typeof store.get('onboardingComplete') !== 'object' || store.get('onboardingComplete') === null) {
+  store.set('onboardingComplete', {})
+}
 
 // ── OBS WebSocket client ──────────────────────────────────────────────────────
 const obs = new OBSWebSocket()
@@ -259,10 +266,24 @@ app.whenReady().then(async () => {
     callback(true)
   })
 
-  protocol.handle('clip', (request) => {
-    const filePath = decodeURIComponent(request.url.replace('clip://', ''))
-    const encodedPath = encodeURI(filePath)
-    return net.fetch(`file:///${encodedPath}`)
+  protocol.handle('clip', async (request) => {
+    const url = new URL(request.url)
+    const filePath = decodeURIComponent(url.searchParams.get('path') || '')
+
+    try {
+      const stats = await stat(filePath)
+      const stream = Readable.toWeb(createReadStream(filePath))
+
+      return new Response(stream, {
+        headers: {
+          'content-type': 'video/mp4',
+          'content-length': String(stats.size)
+        }
+      })
+    } catch (err) {
+      console.error('clip:// protocol error:', err.message)
+      return new Response('Not found', { status: 404 })
+    }
   })
 
   createWindow()
@@ -280,12 +301,16 @@ app.whenReady().then(async () => {
 
   // ── IPC handlers ──────────────────────────────────────────────────────────
 
-  ipcMain.handle('get-onboarding-status', () => ({
-    complete: store.get('onboardingComplete'),
-    hotkey: store.get('hotkey'),
-    outputFolder: store.get('outputFolder'),
-    obsConnected
-  }))
+  ipcMain.handle('get-onboarding-status', (event, userId) => {
+    let onboardingMap = store.get('onboardingComplete')
+    if (typeof onboardingMap !== 'object' || onboardingMap === null) onboardingMap = {}
+    return {
+      complete: !!onboardingMap[userId],
+      hotkey: store.get('hotkey'),
+      outputFolder: store.get('outputFolder'),
+      obsConnected
+    }
+  })
 
   ipcMain.handle('connect-obs', async () => await connectToOBS())
 
@@ -351,8 +376,11 @@ app.whenReady().then(async () => {
     }
   })
 
-  ipcMain.handle('complete-onboarding', () => {
-    store.set('onboardingComplete', true)
+  ipcMain.handle('complete-onboarding', (event, userId) => {
+    let onboardingMap = store.get('onboardingComplete')
+    if (typeof onboardingMap !== 'object' || onboardingMap === null) onboardingMap = {}
+    onboardingMap[userId] = true
+    store.set('onboardingComplete', onboardingMap)
     return { success: true }
   })
 

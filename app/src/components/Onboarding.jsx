@@ -237,7 +237,7 @@ function HotkeyStep ({ onNext }) {
 }
 
 // ── Output folder step ────────────────────────────────────────────────────────
-function FolderStep ({ onFinish }) {
+function FolderStep ({ userId, onFinish }) {
   const [selectedPath, setSelectedPath] = useState('')
 
   useEffect(() => {
@@ -250,7 +250,7 @@ function FolderStep ({ onFinish }) {
   }
 
   async function handleFinish () {
-    await window.electronAPI.completeOnboarding()
+    await window.electronAPI.completeOnboarding(userId)
     onFinish()
   }
 
@@ -298,7 +298,7 @@ function FolderStep ({ onFinish }) {
 }
 
 // ── Main Onboarding component ─────────────────────────────────────────────────
-export default function Onboarding ({ onComplete }) {
+export default function Onboarding ({ user, onComplete }) {
   const [step, setStep] = useState('obs')
 
   const stepOrder = ['obs', 'hotkey', 'folder']
@@ -337,7 +337,7 @@ export default function Onboarding ({ onComplete }) {
             >
               {step === 'obs'    && <OBSStep    onNext={nextStep} />}
               {step === 'hotkey' && <HotkeyStep onNext={nextStep} />}
-              {step === 'folder' && <FolderStep onFinish={onComplete} />}
+              {step === 'folder' && <FolderStep userId={user?.id} onFinish={onComplete} />}
             </motion.div>
           </AnimatePresence>
         </div>
