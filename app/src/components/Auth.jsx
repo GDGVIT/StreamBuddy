@@ -1,195 +1,126 @@
 import { useEffect, useState } from 'react'
 import supabase from '../lib/supabase'
-import img1 from '../assets/img1.svg'
-import img2 from '../assets/img2.svg'
-import img3 from '../assets/img3.svg'
-import img4 from '../assets/img4.svg'
 
-function LoginForm({ isLogin, onAuthSuccess, onToggleView }){
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
-    const [showPassword, setShowPassword] = useState(false)
-    const [loading, setLoading] = useState(false)
-    const [confirm, setConfirm] = useState(false)
-    const [errorMessage, setErrorMessage] = useState('')
+function LoginForm ({ isLogin, onAuthSuccess, onToggleView }) {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [confirm, setConfirm] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
-    async function handleSubmit(e){
-        e.preventDefault()
-        setErrorMessage('')
+  async function handleSubmit (e) {
+    e.preventDefault()
+    setErrorMessage('')
 
-        if (!email || !password){
-            setErrorMessage('Please fill in both your email and password!')
-            return
-        }
-
-        let data, error
-
-        try{
-            setLoading(true)
-            if (isLogin){
-                ({ data, error } = await supabase.auth.signInWithPassword({email, password}))
-            }
-            else{
-                ({ data, error } = await supabase.auth.signUp({email, password}))
-            }
-
-            if (error){
-                setErrorMessage(error.message)
-                return
-            }
-
-            if (data.session){
-                onAuthSuccess(data.user, data.session)
-            }
-            else{
-                setConfirm(true)
-            }
-        }
-        catch(err){
-            setErrorMessage("Something went wrong. Please try again.")
-        }
-        finally{    
-            setLoading(false)
-        }
+    if (!email || !password) {
+      setErrorMessage('Please fill in both your email and password!')
+      return
     }
 
-    return(
-        
-        <div className="relative w-full">
-            
-            <div className="absolute -top-[clamp(4rem,6vw,6.5rem)] left-1/2 -translate-x-1/2 w-[clamp(9rem,12vw,14rem)] flex items-center justify-center z-0">
-                <img src={img3} alt="" className="w-full" />
-            </div>
+    let data, error
 
-            
-            <div className="relative z-10 bg-slate-800/70 border border-slate-600/40 rounded-2xl pt-16 pb-12 px-10 shadow-xl backdrop-blur-sm">
-                {confirm && (
-                    <div className="mb-4 text-center">
-                        <h3 className="text-slate-200 text-[clamp(0.85rem,1vw,1rem)] font-medium">Please confirm your email!</h3>
-                    </div>
-                )}
+    try {
+      setLoading(true)
+      if (isLogin) {
+        ({ data, error } = await supabase.auth.signInWithPassword({ email, password }))
+      } else {
+        ({ data, error } = await supabase.auth.signUp({ email, password }))
+      }
 
-                {errorMessage && (
-                    <div className="mb-4 text-center">
-                        <p className="text-red-400 text-[clamp(0.8rem,0.9vw,0.95rem)]">{errorMessage}</p>
-                    </div>
-                )}
+      if (error) {
+        setErrorMessage(error.message)
+        return
+      }
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-[clamp(0.75rem,1.4vw,1.25rem)]">
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        placeholder="Enter your email"
-                        className="w-full bg-slate-900/60 border border-slate-600/50 rounded-full px-[clamp(1rem,1.8vw,1.5rem)] py-[clamp(0.6rem,1.2vw,1rem)] text-[clamp(0.9rem,1vw,1.05rem)] text-slate-200 placeholder-slate-400 outline-none focus:border-slate-400/60 transition-colors"
-                    />
+      if (data.session) {
+        onAuthSuccess(data.user, data.session)
+      } else {
+        setConfirm(true)
+      }
+    } catch {
+      setErrorMessage('Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-                    <div className="password-container relative">
-                        <input
-                            type={showPassword ? "text" : "password"}
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                            placeholder="Password"
-                            className="w-full bg-slate-900/60 border border-slate-600/50 rounded-full px-[clamp(1rem,1.8vw,1.5rem)] py-[clamp(0.6rem,1.2vw,1rem)] text-[clamp(0.9rem,1vw,1.05rem)] text-slate-200 placeholder-slate-400 outline-none focus:border-slate-400/60 transition-colors pr-[clamp(3rem,4vw,4.5rem)]"
-                        />
+  return (
+    <section>
+      <h2>{isLogin ? 'Log in' : 'Sign up'}</h2>
 
-                        <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-[clamp(1rem,1.8vw,1.5rem)] top-1/2 -translate-y-1/2 text-[clamp(0.8rem,0.9vw,0.95rem)] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-                        >
-                            {showPassword ? "Hide" : "Show"}
-                        </button>
-                    </div>
+      {confirm && <p>Please confirm your email!</p>}
+      {errorMessage && <p role="alert">{errorMessage}</p>}
 
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-slate-600 hover:bg-slate-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-100 text-[clamp(0.9rem,1vw,1.05rem)] font-medium rounded-full py-[clamp(0.65rem,1.2vw,1rem)] mt-1 transition-colors cursor-pointer"
-                    >
-                        {isLogin ? "Login" : "Sign Up"}
-                    </button>
-
-                    <div className="flex items-center gap-3 my-1">
-                        <span className="flex-1 h-px bg-slate-600/50" />
-                        <span className="text-[clamp(0.65rem,0.7vw,0.75rem)] tracking-wide text-slate-400 whitespace-nowrap">OR CONTINUE WITH</span>
-                        <span className="flex-1 h-px bg-slate-600/50" />
-                    </div>
-
-                    <p
-                        onClick={onToggleView}
-                        className="text-[clamp(0.8rem,0.9vw,0.95rem)] text-slate-400 hover:text-slate-300 text-center cursor-pointer"
-                    >
-                        {isLogin ? "Don't have an Account? Sign up" : "Returning user? Log In!"}
-                    </p>
-                </form>
-            </div>
+      <form onSubmit={handleSubmit}>
+        <div>
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="Enter your email"
+          />
         </div>
-    )
+
+        <div>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="Password"
+          />
+          <button type="button" onClick={() => setShowPassword(!showPassword)}>
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
+        </div>
+
+        <button type="submit" disabled={loading}>
+          {isLogin ? 'Login' : 'Sign Up'}
+        </button>
+
+        <p>
+          <button type="button" onClick={onToggleView}>
+            {isLogin ? "Don't have an Account? Sign up" : 'Returning user? Log In!'}
+          </button>
+        </p>
+      </form>
+    </section>
+  )
 }
 
-export default function Auth({ onAuthSuccess }){
-    const [isLogin, setIsLogin] = useState(true)
-    const [user, setUser] = useState(null)
-    const [session, setSession] = useState(null)
+export default function Auth ({ onAuthSuccess }) {
+  const [isLogin, setIsLogin] = useState(true)
+  const [user, setUser] = useState(null)
+  const [session, setSession] = useState(null)
 
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data }) => {
-            if (data.session) {
-                onAuthSuccess(data.session.user, data.session)
-            }
-        })
-    }, [])
+  // Restore an existing session on launch
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        onAuthSuccess(data.session.user, data.session)
+      }
+    })
+  }, [])
 
-    function toggleView(){
-        setIsLogin(!isLogin)
+  function toggleView () {
+    setIsLogin(!isLogin)
+  }
+
+  useEffect(() => {
+    if (session) {
+      onAuthSuccess(user, session)
     }
+  }, [session])
 
-    useEffect(() => {
-        if(session){
-            onAuthSuccess(user, session)
-        }
-    }, [session])
+  function setData (user, session) {
+    setUser(user)
+    setSession(session)
+  }
 
-    function setData(user, session){
-        setUser(user)
-        setSession(session)
-    }
-
-    return(
-        <div className="min-h-screen w-full bg-slate-900 flex items-center justify-center p-3">
-            <div className="relative w-full h-[calc(100vh-1.5rem)] bg-linear-to-br from-slate-800 to-slate-950 rounded-2xl overflow-hidden">
-
-                
-                <img
-                    src={img4}
-                    alt="StreamBuddy"
-                    className="absolute top-[clamp(1.5rem,3vw,2.5rem)] left-[clamp(1.5rem,3vw,2.5rem)] w-[clamp(160px,18vw,320px)] object-contain z-20"
-                />
-
-                
-                <div className="h-full w-full flex items-center justify-center gap-[clamp(1rem,4vw,4rem)] px-[clamp(1rem,5vw,6rem)]">
-
-                    <img
-                        src={img2}
-                        alt="StreamBuddy illustration"
-                        className="hidden sm:block w-[clamp(160px,22vw,420px)] shrink object-contain mr-auto"
-                    />
-
-                    
-                    <img
-                        src={img1}
-                        alt=""
-                        className="hidden lg:block w-[clamp(140px,16vw,320px)] shrink object-contain -translate-y-[clamp(0.5rem,1.8vw,1.5rem)]"
-                    />
-
-                    <div className="shrink-0 w-[clamp(280px,32vw,560px)] ml-auto">
-                        <LoginForm isLogin={isLogin} onToggleView={toggleView} onAuthSuccess={setData} />
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    )
+  return (
+    <main>
+      <h1>StreamBuddy</h1>
+      <LoginForm isLogin={isLogin} onToggleView={toggleView} onAuthSuccess={setData} />
+    </main>
+  )
 }

@@ -1,47 +1,28 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'motion/react'
-import { CheckCircle2, Loader2, FolderOpen, Keyboard } from 'lucide-react'
-import robot from '../assets/robot.svg'
 
 const STEPS = [
-  { key: 'obs',     label: 'OBS Connection',     desc: 'Connect StreamBuddy to OBS Studio and verify your replay buffer is ready for capturing clips.' },
-  { key: 'hotkey',  label: 'Configure Hotkey',   desc: 'Choose the keyboard shortcut that instantly captures your best moments while you\'re streaming.' },
-  { key: 'folder',  label: 'Select Output Folder', desc: 'Choose where your generated clips, subtitles, and exported videos will be saved.' },
+  { key: 'obs', label: 'OBS Connection', desc: 'Connect StreamBuddy to OBS Studio and verify your replay buffer is ready for capturing clips.' },
+  { key: 'hotkey', label: 'Configure Hotkey', desc: 'Choose the keyboard shortcut that instantly captures your best moments while you\'re streaming.' },
+  { key: 'folder', label: 'Select Output Folder', desc: 'Choose where your generated clips, subtitles, and exported videos will be saved.' }
 ]
 
-// ── Step indicators (left sidebar) ───────────────────────────────────────────
+// ── Step indicators (sidebar) ─────────────────────────────────────────────────
 function StepList ({ currentStep }) {
   const currentIndex = STEPS.findIndex(s => s.key === currentStep)
   return (
-    <div className="flex flex-col gap-8">
+    <ol>
       {STEPS.map((step, i) => {
         const isComplete = i < currentIndex
-        const isActive   = i === currentIndex
+        const isActive = i === currentIndex
+        const marker = isComplete ? '[done]' : isActive ? '[current]' : '[pending]'
         return (
-          <div key={step.key} className="flex gap-4 items-start">
-            <div className={`
-              mt-0.5 w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-300
-              ${isComplete ? 'border-emerald-400 bg-emerald-400/10' : isActive ? 'border-slate-400 bg-slate-400/10' : 'border-slate-700 bg-transparent'}
-            `}>
-              {isComplete
-                ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                : isActive
-                ? <Loader2 className="w-3.5 h-3.5 text-slate-300 animate-spin" />
-                : <div className="w-2 h-2 rounded-full bg-slate-700" />
-              }
-            </div>
-            <div>
-              <p className={`text-sm font-medium transition-colors duration-300 ${isActive ? 'text-slate-100' : isComplete ? 'text-slate-300' : 'text-slate-600'}`}>
-                {step.label}
-              </p>
-              <p className={`text-xs mt-0.5 leading-relaxed transition-colors duration-300 ${isActive ? 'text-slate-400' : 'text-slate-600'}`}>
-                {step.desc}
-              </p>
-            </div>
-          </div>
+          <li key={step.key} aria-current={isActive ? 'step' : undefined}>
+            <strong>{marker} {step.label}</strong>
+            <p>{step.desc}</p>
+          </li>
         )
       })}
-    </div>
+    </ol>
   )
 }
 
@@ -64,88 +45,30 @@ function OBSStep ({ onNext }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-3xl font-semibold text-slate-100 underline underline-offset-4 mb-2">Connect OBS Studio</h2>
-        <p className="text-slate-400 text-sm leading-relaxed">
-          We&apos;ll automatically detect OBS Studio and verify that everything is ready for capturing clips.
+    <div>
+      <h2>Connect OBS Studio</h2>
+      <p>We&apos;ll automatically detect OBS Studio and verify that everything is ready for capturing clips.</p>
+
+      <p>Status: {status}</p>
+
+      {status !== 'idle' && (
+        <p>Looking for OBS.... OBS Detected</p>
+      )}
+
+      {(status === 'connecting' || status === 'connected' || status === 'failed') && (
+        <p>
+          Establishing connection...{' '}
+          {status === 'connected'
+            ? 'Connected successfully.'
+            : status === 'failed'
+              ? 'Connection failed. Is OBS open with WebSocket enabled?'
+              : 'Connecting...'}
         </p>
-      </div>
+      )}
 
-      {/* OBS Logo */}
-      <div className="flex flex-col items-start gap-4 mt-2">
-        <div className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-colors duration-500
-          ${status === 'connected' ? 'border-emerald-400' : status === 'failed' ? 'border-rose-500' : 'border-slate-600'}`}>
-          <svg viewBox="0 0 100 100" className="w-10 h-10" fill="none">
-            <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="8" className={status === 'connected' ? 'text-emerald-400' : status === 'failed' ? 'text-rose-400' : 'text-slate-500'} />
-            <circle cx="50" cy="50" r="20" fill="currentColor" className={status === 'connected' ? 'text-emerald-400' : status === 'failed' ? 'text-rose-400' : 'text-slate-500'} />
-            <path d="M50 5 A45 45 0 0 1 95 50" stroke="currentColor" strokeWidth="8" strokeLinecap="round" className="text-slate-300" />
-          </svg>
-        </div>
-
-        {/* Status messages */}
-        <div className="flex flex-col gap-2">
-          {status !== 'idle' && (
-            <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}>
-              <p className="text-slate-200 text-sm font-medium">Looking for OBS....</p>
-              <p className="text-slate-500 text-xs">OBS Detected</p>
-            </motion.div>
-          )}
-
-          {(status === 'connecting' || status === 'connected' || status === 'failed') && (
-            <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-              <p className="text-slate-200 text-sm font-medium">Establishing connection...</p>
-              <p className={`text-xs ${status === 'connected' ? 'text-emerald-400' : status === 'failed' ? 'text-rose-400' : 'text-slate-500'}`}>
-                {status === 'connected' ? 'Connected successfully.' : status === 'failed' ? 'Connection failed. Is OBS open with WebSocket enabled?' : 'Connecting...'}
-              </p>
-            </motion.div>
-          )}
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {status === 'failed' && (
-          <motion.img
-            key="robot"
-            src={robot}
-            alt=""
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 40 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="fixed top-1/2 right-85 -translate-y-1/2 w-80 h-80 object-contain opacity-80 pointer-events-none"
-          />
-        )}
-      </AnimatePresence>
-
-      <div className="flex gap-3 mt-2">
-        {status === 'idle' && (
-          <button
-            onClick={handleConnect}
-            className="px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-medium rounded-xl transition-colors duration-200 cursor-pointer"
-          >
-            Connect to OBS →
-          </button>
-        )}
-
-        {status === 'failed' && (
-          <button
-            onClick={handleConnect}
-            className="px-6 py-2.5 bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 text-sm font-medium rounded-xl transition-colors duration-200 cursor-pointer"
-          >
-            Retry Connection
-          </button>
-        )}
-
-        {status === 'connected' && (
-          <button
-            onClick={onNext}
-            className="px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-medium rounded-xl transition-colors duration-200 cursor-pointer"
-          >
-            Continue →
-          </button>
-        )}
-      </div>
+      {status === 'idle' && <button onClick={handleConnect}>Connect to OBS →</button>}
+      {status === 'failed' && <button onClick={handleConnect}>Retry Connection</button>}
+      {status === 'connected' && <button onClick={onNext}>Continue →</button>}
     </div>
   )
 }
@@ -153,8 +76,8 @@ function OBSStep ({ onNext }) {
 // ── Hotkey step ───────────────────────────────────────────────────────────────
 function HotkeyStep ({ onNext }) {
   const [currentKey, setCurrentKey] = useState('')
-  const [listening, setListening]   = useState(false)
-  const [saved, setSaved]           = useState(false)
+  const [listening, setListening] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     window.electronAPI.getHotkey().then(k => setCurrentKey(k || 'F5'))
@@ -184,54 +107,18 @@ function HotkeyStep ({ onNext }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-3xl font-semibold text-slate-100 underline underline-offset-4 mb-2">Configure Hotkey</h2>
-        <p className="text-slate-400 text-sm leading-relaxed">
-          Choose the keyboard shortcut used to instantly capture clips while you&apos;re streaming.
-        </p>
-      </div>
+    <div>
+      <h2>Configure Hotkey</h2>
+      <p>Choose the keyboard shortcut used to instantly capture clips while you&apos;re streaming.</p>
 
-      <div className="flex flex-col gap-3 mt-2">
-        <p className="text-slate-400 text-sm">Current Hotkey</p>
+      <p>Current Hotkey</p>
+      <button onClick={() => { setListening(true); setSaved(false) }}>
+        {listening ? 'Press any key...' : currentKey || 'F5'}
+      </button>
+      {!listening && currentKey && <p>Click the button above to change the hotkey</p>}
 
-        <div
-          onClick={() => { setListening(true); setSaved(false) }}
-          className={`
-            w-fit min-w-30 px-6 py-2.5 rounded-xl border text-center text-slate-100 font-mono text-lg cursor-pointer transition-all duration-200
-            ${listening
-              ? 'border-indigo-400 bg-indigo-500/10 text-indigo-300'
-              : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
-            }
-          `}
-        >
-          {listening ? 'Press any key...' : currentKey || 'F5'}
-        </div>
-
-        {!listening && currentKey && (
-          <p className="text-slate-600 text-xs">Click the box above to change the hotkey</p>
-        )}
-      </div>
-
-      <div className="flex gap-3">
-        {!saved && (
-          <button
-            onClick={handleSave}
-            className="px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-medium rounded-xl transition-colors duration-200 cursor-pointer"
-          >
-            Save & Continue →
-          </button>
-        )}
-
-        {saved && (
-          <button
-            onClick={onNext}
-            className="px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-medium rounded-xl transition-colors duration-200 cursor-pointer"
-          >
-            Continue →
-          </button>
-        )}
-      </div>
+      {!saved && <button onClick={handleSave}>Save &amp; Continue →</button>}
+      {saved && <button onClick={onNext}>Continue →</button>}
     </div>
   )
 }
@@ -255,44 +142,14 @@ function FolderStep ({ userId, onFinish }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-3xl font-semibold text-slate-100 underline underline-offset-4 mb-2">Select Output Folder</h2>
-        <p className="text-slate-400 text-sm leading-relaxed">
-          Choose where StreamBuddy will save your clips, screenshots, and exported videos.
-        </p>
-      </div>
+    <div>
+      <h2>Select Output Folder</h2>
+      <p>Choose where StreamBuddy will save your clips, screenshots, and exported videos.</p>
 
-      <div className="flex flex-col gap-3 mt-2">
-        <button
-          onClick={handleSelect}
-          className="flex items-center gap-3 w-fit px-6 py-2.5 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600 hover:border-slate-500 text-slate-200 text-sm font-medium rounded-xl transition-all duration-200 cursor-pointer"
-        >
-          <FolderOpen className="w-4 h-4 text-slate-400" />
-          Select Output Folder →
-        </button>
+      <button onClick={handleSelect}>Select Output Folder →</button>
+      {selectedPath && <p><code>{selectedPath}</code></p>}
 
-        {selectedPath && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-slate-500 text-xs font-mono break-all"
-          >
-            {selectedPath}
-          </motion.p>
-        )}
-      </div>
-
-      {selectedPath && (
-        <motion.button
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          onClick={handleFinish}
-          className="fixed bottom-8 right-8 px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-medium rounded-xl transition-colors duration-200 cursor-pointer"
-        >
-          Finish Setup →
-        </motion.button>
-      )}
+      {selectedPath && <button onClick={handleFinish}>Finish Setup →</button>}
     </div>
   )
 }
@@ -309,40 +166,17 @@ export default function Onboarding ({ user, onComplete }) {
   }
 
   return (
-    <div className="min-h-screen w-full bg-slate-900 flex items-center justify-center p-3">
-      <div className="relative w-full h-[calc(100vh-1.5rem)] bg-linear-to-br from-slate-800 to-slate-950 rounded-2xl overflow-hidden flex">
+    <main>
+      <aside>
+        <h1>Stream Buddy</h1>
+        <StepList currentStep={step} />
+      </aside>
 
-        {/* Left sidebar */}
-        <div className="w-95 shrink-0 border-r border-slate-700/50 bg-slate-900/40 p-10 flex flex-col justify-between">
-          <div>
-            {/* Logo */}
-            <div className="flex items-center gap-2 mb-12">
-              <span className="text-slate-100 text-xl font-serif tracking-widest uppercase">Stream Buddy</span>
-            </div>
-
-            <StepList currentStep={step} />
-          </div>
-        </div>
-
-        {/* Right content */}
-        <div className="flex-1 p-12 flex items-center">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, x: 16 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -16 }}
-              transition={{ duration: 0.25 }}
-              className="w-full max-w-lg"
-            >
-              {step === 'obs'    && <OBSStep    onNext={nextStep} />}
-              {step === 'hotkey' && <HotkeyStep onNext={nextStep} />}
-              {step === 'folder' && <FolderStep userId={user?.id} onFinish={onComplete} />}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-      </div>
-    </div>
+      <section>
+        {step === 'obs' && <OBSStep onNext={nextStep} />}
+        {step === 'hotkey' && <HotkeyStep onNext={nextStep} />}
+        {step === 'folder' && <FolderStep userId={user?.id} onFinish={onComplete} />}
+      </section>
+    </main>
   )
 }

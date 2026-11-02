@@ -1,2 +1,22 @@
 /* stylelint-disable-next-line import-notation */
 @import "tailwindcss";
+
+/*
+  TEMPORARY SCAFFOLD — just enough styling to make the stripped UI usable.
+  Tailwind's preflight removes all browser defaults (buttons have no border,
+  headings are body-sized), so without this the skeleton is hard to click through.
+  Delete this whole block when you start the new design.
+*/
+@layer base {
+  body { font-family: system-ui, sans-serif; padding: 1rem; line-height: 1.5; }
+  h1 { font-size: 1.5rem; font-weight: 600; margin-block: 0.5rem; }
+  h2 { font-size: 1.15rem; font-weight: 600; margin-block: 0.5rem; }
+  section { border: 1px solid #ccc; padding: 0.75rem; margin-block: 0.75rem; }
+  button, input { border: 1px solid #888; padding: 0.25rem 0.5rem; margin: 0.15rem; }
+  button { cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  [role="dialog"] {
+    position: fixed; inset: 10% 20%; z-index: 50; overflow: auto;
+    background: white; border: 2px solid #333; padding: 1rem;
+  }
+}

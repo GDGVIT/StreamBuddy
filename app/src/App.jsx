@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react"
-import Auth from "./components/Auth"
-import Dashboard from "./components/Dashboard"
-import Onboarding from "./components/Onboarding"
-import NamingStep from "./components/NamingStep"
-import supabase from "./lib/supabase"
+import { useEffect, useState } from 'react'
+import Auth from './components/Auth'
+import Dashboard from './components/Dashboard'
+import Onboarding from './components/Onboarding'
+import NamingStep from './components/NamingStep'
+import supabase from './lib/supabase'
 import './index.css'
 
 // app state: 'loading' | 'auth' | 'onboarding' | 'naming' | 'dashboard'
@@ -41,7 +41,6 @@ export default function App () {
     // Listen for OBS errors
     window.electronAPI.onObsError((event, message) => {
       console.error('OBS Error:', message)
-      // You can show a toast here later
     })
 
     // Start at auth screen
@@ -49,11 +48,7 @@ export default function App () {
   }, [])
 
   if (appState === 'loading') {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" />
-      </div>
-    )
+    return <p>Loading…</p>
   }
 
   return (
