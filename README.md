@@ -47,7 +47,24 @@ npm run start
 ```
 
 ## Packaging for Production
-TBI
+This builds `StreamBuddy-Setup.exe`, a one-click Windows installer. It brings its own
+copy of the pipeline, ffmpeg and the Whisper model, so players don't need Python or
+FFmpeg installed.
+
+Build it on Windows, from the repo root, with the ML venv set up as above:
+
+```powershell
+ml\venv\Scripts\activate
+pip install -r ml\requirements-dev.txt
+cd app
+npm run bundle:pipeline   # builds the pipeline into app/bundle (takes a few minutes)
+npm run make              # builds the installer
+```
+
+The installer is written to `app/out/make/squirrel.windows/x64/StreamBuddy-Setup.exe`.
+`app/.env.local` must be there when you run `npm run make`, because the Supabase URL and
+key are built into the app. Run `npm run bundle:pipeline` again whenever `ml/pipeline.py`
+or its requirements change.
 
 ## Contributors
 
