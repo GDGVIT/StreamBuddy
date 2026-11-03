@@ -23,9 +23,13 @@
   --color-sb-titlebar: #242424;
   --color-sb-titlebar-error: #656565;
 
+  /* Dashboard + settings */
+  --color-sb-dash: #CFAFF0;
+  --color-sb-tab-yellow: #FFF14D;
+
   /* headings, labels, buttons */
   --font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
-  /* onboarding description text */
+  /* onboarding descriptions; most dashboard + settings text */
   --font-body: "Space Grotesk", system-ui, sans-serif;
 }
 
