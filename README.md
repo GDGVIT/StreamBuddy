@@ -22,7 +22,6 @@ YouTube Shorts or Reels.
 - **AI subtitles:** OpenAI's Whisper transcribes your voice on your own PC, and each word lights up in yellow as you say it.
 - **Vertical layout:** your webcam (from the top-left corner of your stream layout) sits above the centre of the gameplay, over a blurred copy of the game instead of black bars.
 - **Clip library:** browse, search, rename, export and delete your clips. Each account only sees the clips it made.
-- **Accounts:** sign in with email or Google, with email confirmation and password reset.
 
 <br>
 
