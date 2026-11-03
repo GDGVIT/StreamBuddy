@@ -43,7 +43,7 @@ first time the pipeline runs), and skip themselves if any of those are missing.
 ### Sample recording
 
 The real-footage checks use the first 12 seconds of a sample recording, which
-isn't kept in the repo. Use any 1080p gameplay clip with the webcam in the
+isn't kept in the repository. Use any 1080p gameplay clip with the webcam in the
 top-left corner and someone talking, and either:
 
 - save it as `ml/examples/test.mp4` (git ignores that folder), or

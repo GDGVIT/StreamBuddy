@@ -51,7 +51,7 @@ This builds `StreamBuddy-Setup.exe`, a one-click Windows installer. It brings it
 copy of the pipeline, ffmpeg and the Whisper model, so players don't need Python or
 FFmpeg installed.
 
-Build it on Windows, from the repo root, with the ML venv set up as above:
+Build it on Windows, from the root of the repository, with the ML venv set up as above:
 
 ```powershell
 ml\venv\Scripts\activate

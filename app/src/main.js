@@ -274,8 +274,8 @@ app.whenReady().then(async () => {
 
   // Clip previews can go full screen; anything else a page asks for (camera,
   // microphone, location, ...) the app never needs, so it's refused
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    callback(permission === 'fullscreen')
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, allow) => {
+    allow(permission === 'fullscreen')
   })
 
   protocol.handle('clip', async (request) => {
