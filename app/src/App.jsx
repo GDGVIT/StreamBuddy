@@ -2,11 +2,17 @@ import { useEffect, useState } from 'react'
 import Auth from './components/Auth'
 import Dashboard from './components/Dashboard'
 import Onboarding from './components/Onboarding'
-import NamingStep from './components/NamingStep'
 import supabase from './lib/supabase'
 import './index.css'
 
-// app state: 'loading' | 'auth' | 'onboarding' | 'naming' | 'dashboard'
+// app state: 'loading' | 'auth' | 'onboarding' | 'dashboard'
+
+// The name shown in Settings: one the user chose, their Google name, or the part of
+// their email before the @. It can be changed in Settings → Account.
+export function displayName (user) {
+  const meta = user?.user_metadata || {}
+  return meta.username || meta.full_name || meta.name || (user?.email || '').split('@')[0]
+}
 
 export default function App () {
   const [appState, setAppState] = useState('loading')
@@ -17,19 +23,13 @@ export default function App () {
   // Check onboarding status once user logs in
   async function handleAuthSuccess (loggedInUser) {
     setUser(loggedInUser)
-    setUsername(loggedInUser?.user_metadata?.username || '')
+    setUsername(displayName(loggedInUser))
     const status = await window.electronAPI.getOnboardingStatus(loggedInUser.id)
-    if (!status.complete) {
-      setAppState('onboarding')
-    } else if (!loggedInUser?.user_metadata?.username) {
-      setAppState('naming')
-    } else {
-      setAppState('dashboard')
-    }
+    setAppState(status.complete ? 'dashboard' : 'onboarding')
   }
 
   function handleOnboardingComplete () {
-    setAppState(username ? 'dashboard' : 'naming')
+    setAppState('dashboard')
   }
 
   useEffect(() => {
@@ -59,10 +59,6 @@ export default function App () {
 
       {appState === 'onboarding' && (
         <Onboarding user={user} onComplete={handleOnboardingComplete} />
-      )}
-
-      {appState === 'naming' && (
-        <NamingStep onDone={(name) => { setUsername(name); setAppState('dashboard') }} />
       )}
 
       {appState === 'dashboard' && (
