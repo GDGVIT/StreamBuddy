@@ -31,3 +31,7 @@ supabase/.branches/
 supabase/.env*
 .pytest_cache/
 .ruff_cache/
+
+# Built by ml/build_pipeline.py for the installer
+app/bundle/
+ml/build/

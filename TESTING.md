@@ -51,3 +51,15 @@ top-left corner and someone talking, and either:
 
 Without a sample those checks are skipped (as in CI); the checks that build their
 own test videos still run.
+
+### The installer's copy of the pipeline
+
+`npm run bundle:pipeline` builds a standalone copy of the pipeline for the installer
+(see the README). To run the same end-to-end checks against that copy instead of
+`pipeline.py`, point `STREAMBUDDY_PIPELINE_EXE` at it:
+
+```powershell
+$env:STREAMBUDDY_PIPELINE_EXE = "..\app\bundle\pipeline\pipeline.exe"
+python -m pytest -m e2e
+Remove-Item Env:STREAMBUDDY_PIPELINE_EXE
+```
