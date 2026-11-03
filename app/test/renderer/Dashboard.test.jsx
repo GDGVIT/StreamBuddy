@@ -40,10 +40,21 @@ describe('loading clips', () => {
   })
 
   it('shows quick stats for today and this week', async () => {
-    renderDashboard()
-    const stats = await screen.findByRole('region', { name: 'Quick Stats' })
-    await waitFor(() => expect(within(stats).getByText('Today:').nextSibling).toHaveTextContent('2'))
-    expect(within(stats).getByText('This Week:').nextSibling).toHaveTextContent('3')
+    // Midday, so a clip from 30 minutes ago is still today when the tests run just after midnight
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 10, 4, 12, 0) })
+    try {
+      api.listClips.mockResolvedValue([
+        makeClip('polished_boss_fight.mp4', { minutesAgo: 2 }),
+        makeClip('polished_clutch.mp4', { minutesAgo: 30 }),
+        makeClip('polished_funny_fail.mp4', { minutesAgo: 60 * 24 * 3 })
+      ])
+      renderDashboard()
+      const stats = await screen.findByRole('region', { name: 'Quick Stats' })
+      await waitFor(() => expect(within(stats).getByText('Today:').nextSibling).toHaveTextContent('2'))
+      expect(within(stats).getByText('This Week:').nextSibling).toHaveTextContent('3')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('explains what to do when there are no clips yet', async () => {
