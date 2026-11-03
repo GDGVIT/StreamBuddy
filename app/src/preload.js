@@ -18,7 +18,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Output folder
   selectOutputFolder: () => ipcRenderer.invoke('select-output-folder'),
   getOutputFolder: () => ipcRenderer.invoke('get-output-folder'),
+  setOutputFolder: (folder) => ipcRenderer.invoke('set-output-folder', folder),
+  pickFolder: () => ipcRenderer.invoke('pick-folder'),
+  listClips: () => ipcRenderer.invoke('list-clips'),
+  // Which account is logged in: new clips are recorded as theirs and only theirs are listed
+  setCurrentUser: (userId) => ipcRenderer.invoke('set-current-user', userId),
   onOutputFolderMissing: (callback) => ipcRenderer.on('output-folder-missing', callback),
+
+  // Google sign-in: opens the browser, resolves with { success, code } once it redirects back
+  googleSignIn: (authUrl) => ipcRenderer.invoke('google-sign-in', authUrl),
+  cancelGoogleSignIn: () => ipcRenderer.invoke('cancel-google-sign-in'),
 
   // Onboarding
   getOnboardingStatus: (userId) => ipcRenderer.invoke('get-onboarding-status', userId),
@@ -27,7 +36,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File system
   openFileDirectory: (targetPath) => ipcRenderer.send('open-file-directory', targetPath),
 
-  exportClip: (finalPath, destFolder) => ipcRenderer.invoke('export-clip', finalPath, destFolder),
+  exportClip: (finalPath, destFolder, newName) => ipcRenderer.invoke('export-clip', finalPath, destFolder, newName),
 
   getClipDuration: () => ipcRenderer.invoke('get-clip-duration'),
 

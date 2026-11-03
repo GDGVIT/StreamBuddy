@@ -1,4 +1,3 @@
-import { config } from 'dotenv'
 import { app, BrowserWindow, globalShortcut, shell, ipcMain, dialog, session, protocol } from 'electron'
 import path from 'node:path'
 import fs, { createReadStream } from 'node:fs'
@@ -8,10 +7,16 @@ import { spawn } from 'node:child_process'
 import started from 'electron-squirrel-startup'
 import Store from 'electron-store'
 import { OBSWebSocket } from 'obs-websocket-js'
+import { createClipOwnership, forgetAccount } from './main/clipOwnership'
+import { listOwnedClips, exportClip, renameClip, deleteClips } from './main/clipLibrary'
+import { createStageReader } from './main/pipelineOutput'
+import { createOAuthLoopback } from './main/oauthLoopback'
 
 /* global MAIN_WINDOW_VITE_DEV_SERVER_URL, MAIN_WINDOW_VITE_NAME */
 
-config({ path: '.env.local' })
+// Vite replaces import.meta.env.VITE_* with the values from .env.local at build time,
+// so the packaged app has them without shipping the .env file
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'clip', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
@@ -32,7 +37,8 @@ const store = new Store({
     outputFolder: '',
     obsConnected: false,
     onboardingComplete: {},
-    clipDuration: 60
+    clipDuration: 60,
+    clipOwners: {} // clip path → id of the account that made it
   }
 })
 
@@ -40,6 +46,11 @@ const store = new Store({
 if (typeof store.get('onboardingComplete') !== 'object' || store.get('onboardingComplete') === null) {
   store.set('onboardingComplete', {})
 }
+
+// ── Clip ownership ────────────────────────────────────────────────────────────
+// Each clip is recorded against the account that made it (see main/clipOwnership.js)
+const clipOwnership = createClipOwnership(store)
+let currentUserId = null // set by the dashboard while someone is logged in
 
 // ── OBS WebSocket client ──────────────────────────────────────────────────────
 const obs = new OBSWebSocket()
@@ -71,7 +82,7 @@ async function connectToOBS () {
     obsConnected = false
     store.set('obsConnected', false)
     console.error('OBS connection failed:', JSON.stringify(err), err)
-    return { success: false, error: err.message }
+    return { success: false, error: err.message, code: err.code }
   }
 }
 
@@ -154,101 +165,129 @@ const PIPELINE_SCRIPT = path.join(ML_ROOT, 'pipeline.py')
 
 const DEFAULT_FACECAM = '384:216:0:0'
 
-function runProcessingPipeline (videoPath) {
+// ownerId: the account that pressed the hotkey (they own the clip even if they log out mid-run)
+function runProcessingPipeline (videoPath, ownerId) {
   const outputFolder = store.get('outputFolder') || ''
-  currentPythonProcess = spawn('python', [PIPELINE_SCRIPT, videoPath, DEFAULT_FACECAM, outputFolder])
-  const python = currentPythonProcess
-
-  python.stdout.on('data', (data) => {
-    const lines = data.toString().split('\n')
-    lines.forEach(line => {
-      line = line.trim()
-      if (!line.startsWith('STAGE:')) return
-
-      const stageRaw = line.replace('STAGE:', '')
-
-      if (stageRaw.startsWith('DONE:')) {
-        const finalVideoPath = stageRaw.replace('DONE:', '')
-        isProcessing = false
-        mainWindow.webContents.send('stage-update', { status: 'completed', path: finalVideoPath })
-      } else if (stageRaw.startsWith('ERROR:')) {
-        const errMsg = stageRaw.replace('ERROR:', '')
-        isProcessing = false
-        mainWindow.webContents.send('pipeline-error', errMsg)
-        mainWindow.webContents.send('obs-error', errMsg)
-        mainWindow.webContents.send('stage-update', null)
-      } else {
-        const stageMap = {
-          TRANSCRIBING: 'transcribing',
-          FINALIZING: 'finalising'
-        }
-
-        const stage = stageMap[stageRaw] || stageRaw.toLowerCase()
-        mainWindow.webContents.send('stage-update', stage)
-      }
-    })
+  const python = spawn('python', [PIPELINE_SCRIPT, videoPath, DEFAULT_FACECAM, outputFolder], {
+    // Windows pipes default to the old code page, which can't print every character a
+    // transcript might contain, so Python is told to use UTF-8
+    env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
   })
+  currentPythonProcess = python
+
+  const reader = createStageReader((event) => {
+    if (event.type === 'done') {
+      isProcessing = false
+      clipOwnership.setOwner(event.path, ownerId) // before telling the dashboard, so the reload lists it
+      mainWindow.webContents.send('stage-update', { status: 'completed', path: event.path })
+    } else if (event.type === 'error') {
+      isProcessing = false
+      mainWindow.webContents.send('pipeline-error', event.message)
+      mainWindow.webContents.send('stage-update', null)
+    } else {
+      mainWindow.webContents.send('stage-update', event.stage)
+    }
+  })
+  cancelCurrentRun = () => reader.cancel()
+
+  // Decode as UTF-8 here so a character split across two chunks isn't garbled
+  python.stdout.setEncoding('utf8')
+  python.stdout.on('data', (chunk) => reader.push(chunk))
 
   python.stderr.on('data', (data) => {
     console.error('Python error:', data.toString())
   })
 
+  // e.g. Python isn't installed: 'close' still follows and reports it as an error
+  python.on('error', (err) => console.error('Could not start the clip pipeline:', err.message))
+
   python.on('close', (code) => {
     console.log(`Python process exited with code ${code}`)
+    reader.end(code)
+    if (currentPythonProcess === python) currentPythonProcess = null
   })
 }
 
 let appReady = false
 let currentPythonProcess = null
+let cancelCurrentRun = null
 let isProcessing = false
 
 // ── Hotkey registration ───────────────────────────────────────────────────────
+// Returns false if the key can't be used as a global shortcut (invalid, or taken by
+// another app). While onboarding or the settings dialog is open (appReady false) the
+// shortcut is switched off again, because a registered global shortcut swallows the
+// key press and the hotkey picker could never see it.
 function registerHotkey (key) {
   globalShortcut.unregisterAll()
 
-  globalShortcut.register(key, async () => {
-    if (!appReady) return
+  let ok = false
+  try {
+    ok = globalShortcut.register(key, async () => {
+      if (!appReady) return
 
-    if (isProcessing) {
-      // cancel: kill the running python process if you store its handle
-      if (currentPythonProcess) currentPythonProcess.kill()
-      isProcessing = false
-      mainWindow.webContents.send('stage-update', null)
+      if (isProcessing) {
+        // Pressing the hotkey again cancels the clip that's being made
+        cancelCurrentRun?.()
+        if (currentPythonProcess) currentPythonProcess.kill()
+        isProcessing = false
+        mainWindow.webContents.send('stage-update', null)
 
-      // Clean up any partial artifacts left behind by the interrupted run
-      const tempSrtPath = path.join(ML_ROOT, 'temp_subs.srt')
-      if (fs.existsSync(tempSrtPath)) {
-        fs.promises.unlink(tempSrtPath).catch(() => {})
+        // Clean up any partial artifacts left behind by the interrupted run
+        const tempSrtPath = path.join(ML_ROOT, 'temp_subs.srt')
+        if (fs.existsSync(tempSrtPath)) {
+          fs.promises.unlink(tempSrtPath).catch(() => {})
+        }
+        return
       }
-      return
-    }
 
-    if (!obsConnected) {
-      mainWindow.webContents.send('obs-error', 'OBS is not connected. Please reconnect in settings.')
-      return
-    }
+      if (!obsConnected) {
+        mainWindow.webContents.send('obs-error', 'OBS is not connected. Please reconnect in settings.')
+        return
+      }
 
-    const outputFolder = store.get('outputFolder')
-    if (!outputFolder || !fs.existsSync(outputFolder)) {
-      mainWindow.webContents.send('output-folder-missing')
-      return
-    }
+      const outputFolder = store.get('outputFolder')
+      if (!outputFolder || !fs.existsSync(outputFolder)) {
+        mainWindow.webContents.send('output-folder-missing')
+        return
+      }
 
-    isProcessing = true
-    mainWindow.webContents.send('stage-update', 'clipping')
+      isProcessing = true
+      const ownerId = currentUserId
+      mainWindow.webContents.send('stage-update', 'clipping')
 
-    try {
-      const replayPath = await saveReplayBuffer()
-      console.log('Replay saved to:', replayPath)
-      runProcessingPipeline(replayPath)
-    } catch (err) {
-      isProcessing = false
-      console.error('Replay buffer error:', err.message)
-      mainWindow.webContents.send('obs-error', err.message)
-      mainWindow.webContents.send('stage-update', null)
-    }
-  })
+      try {
+        const replayPath = await saveReplayBuffer()
+        console.log('Replay saved to:', replayPath)
+        runProcessingPipeline(replayPath, ownerId)
+      } catch (err) {
+        isProcessing = false
+        console.error('Replay buffer error:', err.message)
+        mainWindow.webContents.send('obs-error', err.message)
+        mainWindow.webContents.send('stage-update', null)
+      }
+    })
+  } catch {
+    ok = false // invalid accelerator string
+  }
+
+  if (!appReady) globalShortcut.unregisterAll()
+  return ok
 }
+
+// ── Google sign-in (OAuth with PKCE) ───────────────────────────────────────────
+// The browser finishes sign-in and is sent back to a local server (main/oauthLoopback.js)
+const oauth = createOAuthLoopback({
+  port: 54500,
+  callbackPath: '/auth/callback',
+  timeoutMs: 3 * 60 * 1000,
+  openExternal: (url) => shell.openExternal(url),
+  onCallback: () => {
+    if (!mainWindow) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+  }
+})
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
@@ -317,8 +356,12 @@ app.whenReady().then(async () => {
   ipcMain.handle('get-obs-status', () => ({ connected: obsConnected }))
 
   ipcMain.handle('set-hotkey', (event, newKey) => {
+    const previousKey = store.get('hotkey')
+    if (!registerHotkey(newKey)) {
+      registerHotkey(previousKey) // keep the old shortcut working
+      return { success: false, error: `globalShortcut.register("${newKey}") failed` }
+    }
     store.set('hotkey', newKey)
-    registerHotkey(newKey)
     return { success: true, hotkey: newKey }
   })
 
@@ -340,41 +383,31 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('get-output-folder', () => store.get('outputFolder'))
 
-  ipcMain.handle('export-clip', async (event, finalPath, destFolder) => {
-    try {
-      const dest = path.join(destFolder, path.basename(finalPath))
-      await fs.promises.copyFile(finalPath, dest)
-      return { success: true, path: dest }
-    } catch (err) {
-      console.error('Export failed:', err.message)
-      return { success: false, error: err.message }
-    }
+  // Folder picker that doesn't change any setting (export destination, settings draft)
+  ipcMain.handle('pick-folder', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory', 'createDirectory'] })
+    if (result.canceled || result.filePaths.length === 0) return { success: false }
+    return { success: true, path: result.filePaths[0] }
   })
 
-  ipcMain.handle('delete-clips', async (event, filePaths) => {
-    const results = []
-    for (const filePath of filePaths) {
-      try {
-        await fs.promises.unlink(filePath)
-        results.push({ path: filePath, success: true })
-      } catch (err) {
-        results.push({ path: filePath, success: false, error: err.message })
-      }
-    }
-    return results
+  ipcMain.handle('set-output-folder', (event, folder) => {
+    if (!folder || !fs.existsSync(folder)) return { success: false, error: 'That folder doesn\'t exist.' }
+    store.set('outputFolder', folder)
+    return { success: true, path: folder }
   })
 
-  ipcMain.handle('rename-clip', async (event, oldPath, newName) => {
-    try {
-      const dir = path.dirname(oldPath)
-      const ext = path.extname(oldPath)
-      const newPath = path.join(dir, `${newName}${ext}`)
-      await fs.promises.rename(oldPath, newPath)
-      return { success: true, path: newPath }
-    } catch (err) {
-      return { success: false, error: err.message }
-    }
+  ipcMain.handle('set-current-user', (event, userId) => {
+    currentUserId = userId || null
   })
+
+  // The logged-in account's clips in the output folder, newest first
+  ipcMain.handle('list-clips', () => listOwnedClips(store.get('outputFolder'), clipOwnership, currentUserId))
+
+  ipcMain.handle('export-clip', (event, finalPath, destFolder, newName) => exportClip(finalPath, destFolder, newName, clipOwnership))
+
+  ipcMain.handle('delete-clips', (event, filePaths) => deleteClips(filePaths, clipOwnership))
+
+  ipcMain.handle('rename-clip', (event, oldPath, newName) => renameClip(oldPath, newName, clipOwnership))
 
   ipcMain.handle('complete-onboarding', (event, userId) => {
     let onboardingMap = store.get('onboardingComplete')
@@ -414,19 +447,34 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('delete-account', async (event, accessToken) => {
     try {
-      const res = await fetch(`${process.env.VITE_SUPABASE_URL}/functions/v1/delete-account`, {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-account`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}` }
       })
 
       if (!res.ok) throw new Error(await res.text())
 
-      store.clear() // wipe local hotkey/outputFolder/clipDuration/onboarding state
+      forgetAccount(store, currentUserId)
       return { success: true }
     } catch (err) {
       return { success: false, error: err.message }
     }
   })
+
+  ipcMain.handle('google-sign-in', async (event, authUrl) => {
+    try {
+      // Only ever open our own Supabase project's auth URL in the browser
+      if (new URL(authUrl).origin !== new URL(SUPABASE_URL).origin) {
+        throw new Error('Unexpected sign-in URL.')
+      }
+      const code = await oauth.wait(authUrl)
+      return { success: true, code }
+    } catch (err) {
+      return { success: false, error: err.message, cancelled: Boolean(err.cancelled) }
+    }
+  })
+
+  ipcMain.handle('cancel-google-sign-in', () => oauth.cancel())
 
   ipcMain.on('open-file-directory', (event, targetPath) => {
     if (targetPath) shell.showItemInFolder(targetPath)
@@ -434,6 +482,8 @@ app.whenReady().then(async () => {
 
   ipcMain.on('set-app-ready', (event, ready) => {
     appReady = ready
+    if (ready) registerHotkey(store.get('hotkey'))
+    else globalShortcut.unregisterAll()
   })
 })
 
