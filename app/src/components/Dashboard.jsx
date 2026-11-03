@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Settings from './Settings'
+import ObsDisconnectedModal from './modals/ObsDisconnectedModal'
+import DirectoryModal from './modals/DirectoryModal'
 
 const STAGES = [
   { key: 'clipping', label: 'Clipping' },
@@ -90,36 +92,6 @@ function CompletionModal ({ finalPath, onDismiss, onRenamed }) {
 
       <button onClick={() => window.electronAPI.openFileDirectory(currentPath)}>View in Folder</button>
       <button onClick={handleExport}>Export to another folder</button>
-    </div>
-  )
-}
-
-// ── OBS disconnect modal ──────────────────────────────────────────────────────
-function ObsDisconnectModal ({ onDismiss, onRetry, reconnecting }) {
-  return (
-    <div role="dialog" aria-label="OBS disconnected">
-      <button onClick={onDismiss}>Close</button>
-
-      <h3>OBS Disconnected</h3>
-      <p>StreamBuddy lost connection to OBS. Make sure OBS is open with WebSocket enabled, then retry.</p>
-
-      <button onClick={onRetry} disabled={reconnecting}>
-        {reconnecting ? 'Checking...' : 'Retry Connection'}
-      </button>
-    </div>
-  )
-}
-
-// ── Output folder missing modal ───────────────────────────────────────────────
-function FolderMissingModal ({ onDismiss, onSelectFolder }) {
-  return (
-    <div role="dialog" aria-label="Output folder missing">
-      <button onClick={onDismiss}>Close</button>
-
-      <h3>Output Folder Missing</h3>
-      <p>The folder you selected for clips has been moved or deleted. Please choose a new output folder.</p>
-
-      <button onClick={onSelectFolder}>Select New Folder</button>
     </div>
   )
 }
@@ -409,7 +381,7 @@ export default function Dashboard ({ user, username, onUsernameChange, currentSt
       )}
 
       {showObsAlert && (
-        <ObsDisconnectModal
+        <ObsDisconnectedModal
           onDismiss={() => setShowObsAlert(false)}
           onRetry={handleRetryObs}
           reconnecting={reconnecting}
@@ -417,9 +389,10 @@ export default function Dashboard ({ user, username, onUsernameChange, currentSt
       )}
 
       {showFolderAlert && (
-        <FolderMissingModal
-          onDismiss={() => setShowFolderAlert(false)}
-          onSelectFolder={handleSelectNewFolder}
+        <DirectoryModal
+          variant="missing"
+          onPickFolder={handleSelectNewFolder}
+          onGoBack={() => setShowFolderAlert(false)}
         />
       )}
 
