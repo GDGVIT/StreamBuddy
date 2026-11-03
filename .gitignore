@@ -12,6 +12,7 @@ __pycache__/
 # Video Output and Input Directories
 ml/finished_videos/
 ml/raw_videos/
+ml/examples/
 
 # Temporary files
 *.srt
@@ -25,4 +26,7 @@ Thumbs.db
 
 # Dependency directories
 node_modules/
-supabase/
+supabase/.temp/
+supabase/.branches/
+supabase/.env*
+.pytest_cache/
