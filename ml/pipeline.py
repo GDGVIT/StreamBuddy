@@ -106,12 +106,15 @@ def burn_subtitles_to_video(
     sub_style = "FontName=Impact,Alignment=2,MarginV=80,FontSize=16,PrimaryColour=&H00FFFFFF&,Outline=2,Shadow=1,OutlineColour=&H00000000&"
 
     filter_complex = (
+        # 0. Normalise to 1920x1080 first. Every crop below is in 1080p coordinates, so
+        #    720p or 1440p recordings would otherwise crop the wrong area or fail outright.
+        "[0:v]scale=1920:1080,setsar=1,split=3[src_bg][src_cam][src_game];"
         # 1. Background Canvas: Scale source, crop to 9:16, apply heavy blur
-        "[0:v]scale=-1:1920,crop=1080:1920,gblur=sigma=20[bg];"
+        "[src_bg]scale=-1:1920,crop=1080:1920,gblur=sigma=20[bg];"
         # 2. Webcam Slicing: Crop facecam dynamically, scale up for visibility
-        f"[0:v]crop={facecam_crop},scale=900:-1[cam];"
+        f"[src_cam]crop={facecam_crop},scale=900:-1[cam];"
         # 3. Gameplay Slicing: Center crop (1080x1080 at x=420) to keep crosshair & hotbar perfectly centered
-        "[0:v]crop=1080:1080:420:0[game];"
+        "[src_game]crop=1080:1080:420:0[game];"
         # 4. Compositing: Overlay gameplay centrally on background
         "[bg][game]overlay=(W-w)/2:(H-h)/2[bg_game];"
         # 5. Compositing: Overlay webcam near the top (y=50)
@@ -171,6 +174,16 @@ def burn_subtitles_to_video(
         return None
 
 
+def use_utf8_output():
+    """Prints UTF-8 whatever the console's default is.
+
+    On Windows a piped stdout uses the legacy code page, which can't encode every
+    character a transcript may contain, so printing the subtitles would crash.
+    """
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+
 def process_video_pipeline(
     input_video_path, facecam_config="384:216:0:0", output_dir=None
 ):
@@ -183,6 +196,7 @@ def process_video_pipeline(
             f"ERROR: Specified source file does not exist: {input_video_path}",
             flush=True,
         )
+        print("STAGE:ERROR:The recording couldn't be found.", flush=True)
         return None
 
     ml_dir = os.path.dirname(os.path.abspath(__file__))
@@ -191,8 +205,14 @@ def process_video_pipeline(
     try:
         # 1. Step One: Run AI Speech-to-Text Transcription
         print("STAGE:TRANSCRIBING", flush=True)
-        model = whisper.load_model("base", device="cpu")
-        results = model.transcribe(input_video_path, word_timestamps=True)
+        try:
+            model = whisper.load_model("base", device="cpu")
+            results = model.transcribe(input_video_path, word_timestamps=True)
+        except (RuntimeError, OSError) as e:
+            # e.g. the recording has no audio track, or the model file is missing
+            print(f"ERROR: Transcription failed: {e}", flush=True)
+            print("STAGE:ERROR:Couldn't transcribe the clip's audio.", flush=True)
+            return None
 
         # 2. Step Two: Build Subtitle Timing Constraints
         create_srt_file(results, srt_file_path)
@@ -217,7 +237,7 @@ def process_video_pipeline(
         if final_video_path:
             print(f"STAGE:DONE:{final_video_path}", flush=True)
         else:
-            print("STAGE:ERROR:Subtitle burn failed", flush=True)
+            print("STAGE:ERROR:Couldn't build the vertical video.", flush=True)
 
         return final_video_path
 
@@ -228,6 +248,8 @@ def process_video_pipeline(
 
 
 if __name__ == "__main__":
+    use_utf8_output()
+
     # Standard fallback logic for standalone testing straight from the CLI
     if len(sys.argv) < 2:
         print(
