@@ -3,25 +3,31 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses')
 
 module.exports = {
   packagerConfig: {
-    asar: true
+    asar: true,
+    icon: 'assets/icon', // Forge adds .ico on Windows
+    // Built by ml/build_pipeline.py; they end up in the installed app's resources folder,
+    // where main/pipelineCommand.js looks for them
+    extraResource: ['bundle/pipeline', 'bundle/ffmpeg', 'bundle/whisper'],
+    win32metadata: {
+      CompanyName: 'StreamBuddy',
+      FileDescription: 'StreamBuddy',
+      ProductName: 'StreamBuddy'
+    }
   },
   rebuildConfig: {},
   makers: [
     {
+      // A one-click installer like Discord's: installs for the current user (no admin
+      // prompt), adds Start menu and desktop shortcuts, and opens the app when done
       name: '@electron-forge/maker-squirrel',
-      config: {}
-    },
-    {
-      name: '@electron-forge/maker-zip',
-      platforms: ['darwin']
-    },
-    {
-      name: '@electron-forge/maker-deb',
-      config: {}
-    },
-    {
-      name: '@electron-forge/maker-rpm',
-      config: {}
+      config: {
+        setupExe: 'StreamBuddy-Setup.exe',
+        setupIcon: 'assets/icon.ico',
+        loadingGif: 'assets/installing.gif', // shown while it installs
+        // The icon shown in Settings → Apps; Windows downloads it, so it must be a URL
+        iconUrl: 'https://raw.githubusercontent.com/GDGVIT/StreamBuddy/dev/app/assets/icon.ico',
+        noMsi: true
+      }
     }
   ],
   plugins: [

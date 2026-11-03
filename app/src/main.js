@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, shell, ipcMain, dialog, session, protocol } from 'electron'
+import { app, BrowserWindow, Menu, globalShortcut, shell, ipcMain, dialog, session, protocol } from 'electron'
 import path from 'node:path'
 import fs, { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
@@ -11,6 +11,7 @@ import { createClipOwnership, forgetAccount } from './main/clipOwnership'
 import { listOwnedClips, exportClip, renameClip, deleteClips } from './main/clipLibrary'
 import { createStageReader } from './main/pipelineOutput'
 import { createOAuthLoopback } from './main/oauthLoopback'
+import { pipelineCommand } from './main/pipelineCommand'
 
 /* global MAIN_WINDOW_VITE_DEV_SERVER_URL, MAIN_WINDOW_VITE_NAME */
 
@@ -22,13 +23,18 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'clip', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
 ])
 
+// The installer starts the app briefly to make shortcuts; it should quit straight away
 if (started) app.quit()
 
-// Fix DNS resolution and network issues in Electron dev mode
-app.commandLine.appendSwitch('disable-web-security')
-app.commandLine.appendSwitch('ignore-certificate-errors')
-app.commandLine.appendSwitch('allow-insecure-localhost', 'true')
-app.commandLine.appendSwitch('disable-features', 'OutOfBlinkCors,BlockInsecurePrivateNetworkRequests')
+// Only one copy at a time: a second one would fight over the hotkey and the sign-in
+// port, so opening the app again just brings the open window to the front
+if (!started && !app.requestSingleInstanceLock()) app.quit()
+
+app.on('second-instance', () => {
+  if (!mainWindow) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.focus()
+})
 
 // ── Persistent config store ───────────────────────────────────────────────────
 const store = new Store({
@@ -126,52 +132,30 @@ const createWindow = () => {
     }
   })
 
-  // Allow all requests through — fixes Supabase ERR_NAME_NOT_RESOLVED in dev
-  // eslint-disable-next-line
-  mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
-    // eslint-disable-next-line
-    callback({
-      requestHeaders: {
-        ...details.requestHeaders,
-        Origin: '*'
-      }
-    })
-  })
-  // eslint-disable-next-line
-  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-    // eslint-disable-next-line
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Access-Control-Allow-Origin': ['*'],
-        'Access-Control-Allow-Headers': ['*']
-      }
-    })
-  })
-
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL)
   } else {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`))
   }
 
-  mainWindow.webContents.openDevTools()
+  // Developer tools only open while developing
+  if (!app.isPackaged) mainWindow.webContents.openDevTools()
 }
 
 // ── ML pipeline runner ────────────────────────────────────────────────────────
-const APP_ROOT = app.getAppPath()
-const ML_ROOT = path.join(APP_ROOT, '../ml')
-const PIPELINE_SCRIPT = path.join(ML_ROOT, 'pipeline.py')
-
 const DEFAULT_FACECAM = '384:216:0:0'
 
 // ownerId: the account that pressed the hotkey (they own the clip even if they log out mid-run)
 function runProcessingPipeline (videoPath, ownerId) {
   const outputFolder = store.get('outputFolder') || ''
-  const python = spawn('python', [PIPELINE_SCRIPT, videoPath, DEFAULT_FACECAM, outputFolder], {
-    // Windows pipes default to the old code page, which can't print every character a
-    // transcript might contain, so Python is told to use UTF-8
-    env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+  const { command, args, env } = pipelineCommand({
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    appPath: app.getAppPath()
+  })
+  const python = spawn(command, [...args, videoPath, DEFAULT_FACECAM, outputFolder], {
+    env,
+    windowsHide: true // no console window popping up over the game
   })
   currentPythonProcess = python
 
@@ -232,12 +216,6 @@ function registerHotkey (key) {
         if (currentPythonProcess) currentPythonProcess.kill()
         isProcessing = false
         mainWindow.webContents.send('stage-update', null)
-
-        // Clean up any partial artifacts left behind by the interrupted run
-        const tempSrtPath = path.join(ML_ROOT, 'temp_subs.srt')
-        if (fs.existsSync(tempSrtPath)) {
-          fs.promises.unlink(tempSrtPath).catch(() => {})
-        }
         return
       }
 
@@ -291,18 +269,13 @@ const oauth = createOAuthLoopback({
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
-  // Allow all network requests globally before window is created
+  // The File/Edit/View menu is only useful while developing
+  if (app.isPackaged) Menu.setApplicationMenu(null)
 
-  // eslint-disable-next-line
-  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    // eslint-disable-next-line
-    callback({ requestHeaders: details.requestHeaders })
-  })
-
-  // eslint-disable-next-line
+  // Clip previews can go full screen; anything else a page asks for (camera,
+  // microphone, location, ...) the app never needs, so it's refused
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    // eslint-disable-next-line
-    callback(true)
+    callback(permission === 'fullscreen')
   })
 
   protocol.handle('clip', async (request) => {
@@ -494,4 +467,5 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll()
   if (obsConnected) obs.disconnect()
+  currentPythonProcess?.kill() // don't leave a clip half-made in the background
 })

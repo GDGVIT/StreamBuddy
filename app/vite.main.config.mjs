@@ -4,12 +4,10 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   build: {
     rollupOptions: {
-      external: [
-        'bufferutil',
-        'utf-8-validate',
-        'electron-store',
-        'obs-websocket-js',
-      ]
+      // Optional speed-ups for the WebSocket library OBS uses. They aren't installed,
+      // and it works without them. Everything else is bundled into main.js, because the
+      // packaged app only contains Vite's output, not node_modules.
+      external: ['bufferutil', 'utf-8-validate']
     }
   }
 });
