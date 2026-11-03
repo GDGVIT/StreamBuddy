@@ -5,7 +5,7 @@ export default function ChunkyButton ({ className = '', type = 'button', ...prop
     <button
       type={type}
       {...props}
-      className={`inline-flex cursor-pointer items-center justify-center gap-[0.5vw] font-bold leading-none transition-transform active:translate-x-[0.2vw] active:translate-y-[0.2vw] disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      className={`inline-flex cursor-pointer items-center justify-center gap-[0.5cqw] font-bold leading-none transition-transform active:translate-x-[0.2cqw] active:translate-y-[0.2cqw] disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     />
   )
 }

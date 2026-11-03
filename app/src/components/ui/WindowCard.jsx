@@ -4,15 +4,15 @@ import windowControls from '../../assets/Frame 216.svg'
 const PRESETS = {
   // onboarding step cards
   panel: {
-    frame: 'rounded-[0.7vw] border-[0.2vw] shadow-[0.6vw_0.6vw_0_#000]',
-    bar: 'h-[3.45vw] px-[1.1vw]',
-    controls: 'w-[8.6vw]'
+    frame: 'rounded-[0.7cqw] border-[0.2cqw] shadow-[0.6cqw_0.6cqw_0_#000]',
+    bar: 'h-[3.45cqw] px-[1.1cqw]',
+    controls: 'w-[8.6cqw]'
   },
   // full-screen modals (Selected Directory / Can't Find the Directory)
   modal: {
-    frame: 'rounded-[1.3vw] border-[0.35vw] shadow-[-2.15vw_2.75vw_0_#000]',
-    bar: 'h-[5.2vw] px-[1.9vw] border-b-[0.35vw] border-black',
-    controls: 'w-[11.4vw]'
+    frame: 'rounded-[1.3cqw] border-[0.35cqw] shadow-[-2.15cqw_2.75cqw_0_#000]',
+    bar: 'h-[5.2cqw] px-[1.9cqw] border-b-[0.35cqw] border-black',
+    controls: 'w-[11.4cqw]'
   }
 }
 
