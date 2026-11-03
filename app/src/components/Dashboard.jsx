@@ -113,8 +113,12 @@ export default function Dashboard ({ user, username, onUsernameChange, currentSt
   // Tell the main process who's logged in (new clips are saved as theirs), then list
   // this account's clips. Logging out unmounts the dashboard and clears it again.
   useEffect(() => {
-    window.electronAPI.setCurrentUser(user.id).then(refreshClips)
-    return () => { window.electronAPI.setCurrentUser(null) }
+    let open = true
+    window.electronAPI.setCurrentUser(user.id).then(() => { if (open) refreshClips() })
+    return () => {
+      open = false
+      window.electronAPI.setCurrentUser(null)
+    }
   }, [user.id, refreshClips])
 
   // The global hotkey only works while the dashboard is showing
