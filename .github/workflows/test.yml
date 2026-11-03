@@ -1,0 +1,77 @@
+---
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: App (Vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        env:
+          # The tests don't start Electron itself, so skip its download
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+      - name: Run tests
+        run: npm test
+
+  pipeline-unit:
+    name: ML pipeline (unit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install pytest
+        run: pip install -r requirements-dev.txt
+      - name: Run unit tests
+        run: python -m pytest -m "not e2e"
+
+  pipeline-e2e:
+    name: ML pipeline (end-to-end)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install Whisper (CPU build of PyTorch)
+        run: >
+          pip install -r requirements-dev.txt openai-whisper==20250625
+          --extra-index-url https://download.pytorch.org/whl/cpu
+      - name: Cache the Whisper model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/whisper
+          key: whisper-base
+      - name: Download the Whisper model
+        run: python -c "import whisper; whisper.load_model('base')"
+      - name: Run end-to-end tests
+        run: python -m pytest -m e2e -v
