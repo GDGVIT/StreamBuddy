@@ -50,7 +50,6 @@ export default function ObsDisconnectedModal ({ onRetry, reconnecting, onDismiss
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="obs-disconnected-title"
-      data-ui
       className="z-50 bg-sb-page-purple font-display text-black"
     >
       <Decorations items={BACK_DECOR} />
@@ -62,11 +61,11 @@ export default function ObsDisconnectedModal ({ onRetry, reconnecting, onDismiss
         <img src={laptop} alt="" className="w-[20.8cqw]" />
 
         <div className="relative mt-[0.7cqw]">
-          <Burst color="#FDF204" className="-left-[4.4cqw] -top-[1.2cqw] w-[3.4cqw] -scale-x-100" />
+          <Burst color="#FDF204" className="left-[-4.4cqw] top-[-1.2cqw] w-[3.4cqw] -scale-x-100" />
           <h2 id="obs-disconnected-title" className="text-[4.4cqw] font-bold leading-none">
             OBS <span className="text-sb-purple-ink">Disconnected</span>
           </h2>
-          <Burst color="#FDF204" className="-right-[4.4cqw] -top-[1.2cqw] w-[3.4cqw]" />
+          <Burst color="#FDF204" className="right-[-4.4cqw] top-[-1.2cqw] w-[3.4cqw]" />
         </div>
 
         <p className="mt-[2.1cqw] text-[1.65cqw] font-semibold">Looks like the connection was lost.</p>

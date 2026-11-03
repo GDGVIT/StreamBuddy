@@ -21,7 +21,6 @@ export default function DialogCard ({ label, onClose, className = '', bodyClassN
       role="dialog"
       aria-modal="true"
       aria-label={label}
-      data-ui
       onMouseDown={handleBackdrop}
       className="z-50 bg-white/20 font-display text-black backdrop-blur-[6px]"
     >

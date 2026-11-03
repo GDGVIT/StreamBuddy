@@ -28,8 +28,8 @@ const PILL = 'h-[2.75cqw] rounded-full bg-sb-dash px-[1cqw] font-body text-[1.45
 function Panel ({ title, icon, className = '', shadow, children }) {
   return (
     <section aria-label={title} className={`absolute rounded-[1.1cqw] border-[0.4cqw] border-black bg-white ${shadow} ${className}`}>
-      <h2 className="absolute -top-[2.4cqw] left-[0.8cqw] flex h-[3.6cqw] w-[21.5cqw] items-center gap-[1cqw] rounded-[0.6cqw] bg-sb-tab-yellow px-[1cqw] font-body text-[1.9cqw] font-bold tracking-[0.05em] shadow-[0_0.5cqw_0_#000]">
-        {icon && <img src={icon} alt="" className="-my-[0.6cqw] h-[3.8cqw] w-[3.8cqw]" />}
+      <h2 className="absolute top-[-2.4cqw] left-[0.8cqw] flex h-[3.6cqw] w-[21.5cqw] items-center gap-[1cqw] rounded-[0.6cqw] bg-sb-tab-yellow px-[1cqw] font-body text-[1.9cqw] font-bold tracking-wider shadow-[0_0.5cqw_0_#000]">
+        {icon && <img src={icon} alt="" className="my-[-0.6cqw] h-[3.8cqw] w-[3.8cqw]" />}
         {title}
       </h2>
       {children}
@@ -222,7 +222,7 @@ export default function Dashboard ({ user, username, onUsernameChange, currentSt
       {/* App window, centred. On windows wider than 16:9 it stretches sideways to
           keep the same small margin; the extra width is split between the two columns. */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative h-[51.8cqw] w-[max(94cqw,calc(100vw_-_6cqw))] shrink-0 overflow-hidden rounded-[1.3cqw] border-[0.33cqw] border-black bg-sb-dash">
+        <div className="relative h-[51.8cqw] w-[max(94cqw,calc(100vw-6cqw))] shrink-0 overflow-hidden rounded-[1.3cqw] border-[0.33cqw] border-black bg-sb-dash">
           <header className="flex h-[6.9cqw] items-center justify-between border-b-[0.33cqw] border-black bg-sb-purple-dark pl-[2cqw] pr-[1.4cqw]">
             <img src={logo} alt="StreamBuddy" className="w-[25.4cqw] brightness-0 invert" />
             <button
@@ -239,7 +239,7 @@ export default function Dashboard ({ user, username, onUsernameChange, currentSt
           <div className="absolute left-[4.1cqw] right-[4.04cqw] top-[9.7cqw] flex h-[6.2cqw] items-center justify-between rounded-[1.5cqw] bg-sb-green pl-[5.5cqw] pr-[2.2cqw] shadow-[0.4cqw_1cqw_0_#000]">
             <p className="flex items-baseline gap-[1.6cqw]">
               <span className="text-[2.9cqw] font-bold">Status:</span>
-              <span className="font-body text-[2.15cqw] font-medium tracking-[0.05em]">
+              <span className="font-body text-[2.15cqw] font-medium tracking-wider">
                 {obsStatus === 'connected' ? 'OBS Connected' : obsStatus === 'checking' ? 'Checking OBS…' : 'OBS Disconnected'}
               </span>
               {obsStatus === 'disconnected' && (
@@ -248,11 +248,11 @@ export default function Dashboard ({ user, username, onUsernameChange, currentSt
                 </button>
               )}
             </p>
-            <p className="font-body text-[2.15cqw] font-bold tracking-[0.05em]">{hotkey} Hotkey Selected</p>
+            <p className="font-body text-[2.15cqw] font-bold tracking-wider">{hotkey} Hotkey Selected</p>
           </div>
 
           {/* Recent clips */}
-          <Panel title="Recent Clips" icon={videoIcon} shadow="shadow-[-0.3cqw_1.7cqw_0_#000]" className="left-[4.1cqw] top-[20.6cqw] h-[27.3cqw] w-[calc(43.1cqw_+_(100%_-_93.34cqw)_/_2)]">
+          <Panel title="Recent Clips" icon={videoIcon} shadow="shadow-[-0.3cqw_1.7cqw_0_#000]" className="left-[4.1cqw] top-[20.6cqw] h-[27.3cqw] w-[calc(43.1cqw+(100%-93.34cqw)/2)]">
             <div data-keep-selection className="absolute inset-x-[1.3cqw] top-[3.7cqw] flex items-center justify-between gap-[1cqw]">
               <input
                 type="search"
@@ -270,7 +270,7 @@ export default function Dashboard ({ user, username, onUsernameChange, currentSt
               )}
             </div>
 
-            <div className="absolute inset-x-[1.3cqw] bottom-[0.8cqw] top-[8.6cqw] overflow-y-auto pr-[0.8cqw] [scrollbar-color:#612298_transparent] [scrollbar-width:thin]">
+            <div className="absolute inset-x-[1.3cqw] bottom-[0.8cqw] top-[8.6cqw] overflow-y-auto pr-[0.8cqw] [scrollbar-color:#612298_transparent] scrollbar-thin">
               {clips.length === 0
                 ? <p className="pt-[3cqw] text-center font-body text-[1.3cqw] font-bold text-black/60">No clips yet — press {hotkey} while streaming to make one.</p>
                 : visibleClips.length === 0
@@ -294,15 +294,15 @@ export default function Dashboard ({ user, username, onUsernameChange, currentSt
           </Panel>
 
           {/* Quick stats */}
-          <Panel title="Quick Stats" shadow="shadow-[0.35cqw_1cqw_0_#000]" className="left-[calc(49.2cqw_+_(100%_-_93.34cqw)_/_2)] right-[0.94cqw] top-[21.2cqw] h-[11.3cqw]">
-            <dl className="absolute left-[1.9cqw] top-[3.4cqw] font-body text-[1.85cqw] font-bold leading-[3.2cqw] tracking-[0.05em]">
+          <Panel title="Quick Stats" shadow="shadow-[0.35cqw_1cqw_0_#000]" className="left-[calc(49.2cqw+(100%-93.34cqw)/2)] right-[0.94cqw] top-[21.2cqw] h-[11.3cqw]">
+            <dl className="absolute left-[1.9cqw] top-[3.4cqw] font-body text-[1.85cqw] font-bold leading-[3.2cqw] tracking-wider">
               <div className="flex gap-[1cqw]"><dt>Today:</dt><dd>{stats.today}</dd></div>
               <div className="flex gap-[1cqw]"><dt>This Week:</dt><dd>{stats.week}</dd></div>
             </dl>
           </Panel>
 
           {/* Pipeline progress */}
-          <Panel title="Standing By" shadow="shadow-[0.35cqw_1cqw_0_#000]" className="left-[calc(49.2cqw_+_(100%_-_93.34cqw)_/_2)] right-[0.94cqw] top-[36.7cqw] h-[11.3cqw]">
+          <Panel title="Standing By" shadow="shadow-[0.35cqw_1cqw_0_#000]" className="left-[calc(49.2cqw+(100%-93.34cqw)/2)] right-[0.94cqw] top-[36.7cqw] h-[11.3cqw]">
             <div className="absolute inset-x-[1.9cqw] bottom-[0.6cqw] top-[1.6cqw] flex items-center justify-center">
               {showProcessing
                 ? <ProcessingIndicator currentStage={currentStage} />

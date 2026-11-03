@@ -42,7 +42,6 @@ export default function DirectoryModal ({ variant = 'selected', path = '', onPic
       role="dialog"
       aria-modal="true"
       aria-labelledby="directory-modal-title"
-      data-ui
       // the zig-zag covers the whole window, not just the 16:9 canvas
       style={{ backgroundImage: `url("${zigzagPattern}")` }}
       className="z-50 bg-sb-page-purple bg-cover bg-center font-display text-black"
@@ -53,13 +52,13 @@ export default function DirectoryModal ({ variant = 'selected', path = '', onPic
         <WindowCard
           preset="modal"
           tone="purple"
-          className="w-[62.8cqw] shrink-0 translate-x-[1.23cqw] -translate-y-[1.57cqw]"
+          className="w-[62.8cqw] shrink-0 translate-x-[1.23cqw] translate-y-[-1.57cqw]"
           bodyClassName="h-[38.6cqw] bg-sb-modal"
         >
           <div className="flex h-full flex-col items-center pt-[1.1cqw]">
             {missing ? <MissingFolderArt /> : <SelectedFolderArt />}
 
-            <h2 id="directory-modal-title" className={`${missing ? '-mt-[0.6cqw]' : 'mt-[1.7cqw]'} text-[2.9cqw] font-bold leading-none`}>
+            <h2 id="directory-modal-title" className={`${missing ? 'mt-[-0.6cqw]' : 'mt-[1.7cqw]'} text-[2.9cqw] font-bold leading-none`}>
               {missing
                 ? <>Oops! <span className="text-sb-purple-ink">Can&apos;t Find the Directory</span></>
                 : <>Selected <span className="text-sb-purple-ink">Directory</span></>}

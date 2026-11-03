@@ -32,22 +32,3 @@
   /* onboarding descriptions; most dashboard + settings text */
   --font-body: "Space Grotesk", system-ui, sans-serif;
 }
-
-/*
-  TEMPORARY SCAFFOLD — just enough styling to make the not-yet-designed screens
-  usable. Scoped to <main> and old-style dialogs; redesigned screens (and any
-  element marked data-ui) are left alone. Delete once every screen is redesigned.
-*/
-@layer base {
-  main { font-family: system-ui, sans-serif; padding: 1rem; line-height: 1.5; }
-  main h1 { font-size: 1.5rem; font-weight: 600; margin-block: 0.5rem; }
-  main h2 { font-size: 1.15rem; font-weight: 600; margin-block: 0.5rem; }
-  main section { border: 1px solid #ccc; padding: 0.75rem; margin-block: 0.75rem; }
-  :where(main, [role="dialog"]:not([data-ui])) :is(button, input) { border: 1px solid #888; padding: 0.25rem 0.5rem; margin: 0.15rem; }
-  :where(main, [role="dialog"]:not([data-ui])) button { cursor: pointer; }
-  :where(main, [role="dialog"]:not([data-ui])) button:disabled { opacity: 0.5; cursor: not-allowed; }
-  [role="dialog"]:not([data-ui]) {
-    position: fixed; inset: 10% 20%; z-index: 50; overflow: auto;
-    background: white; border: 2px solid #333; padding: 1rem;
-  }
-}

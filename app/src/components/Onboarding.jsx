@@ -48,7 +48,7 @@ function Sidebar ({ statusFor }) {
   return (
     <aside className="absolute inset-y-0 left-0 w-[38.9cqw]">
       {/* Background reaches the window's left, top and bottom edges when the window isn't 16:9 */}
-      <div className="absolute bottom-[calc((100cqh_-_100vh)_/_2)] left-[calc((100cqw_-_100vw)_/_2)] right-0 top-[calc((100cqh_-_100vh)_/_2)] rounded-r-[1.4cqw] bg-sb-lavender shadow-[1.4cqw_0_0_#000]" />
+      <div className="absolute bottom-[calc((100cqh-100vh)/2)] left-[calc((100cqw-100vw)/2)] right-0 top-[calc((100cqh-100vh)/2)] rounded-r-[1.4cqw] bg-sb-lavender shadow-[1.4cqw_0_0_#000]" />
       <img src={logo} alt="StreamBuddy" className="absolute left-[1.67cqw] top-[2.03cqw] w-[20.9cqw] brightness-0" />
 
       <ol>

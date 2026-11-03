@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom'
 export default function Stage ({ className = '', canvasClassName = '', portal = false, children, ...props }) {
   const stage = (
     <div {...props} className={`fixed inset-0 flex items-center justify-center overflow-hidden ${className}`}>
-      <div data-stage className={`relative h-[min(100vh,56.25vw)] w-[min(100vw,177.78vh)] shrink-0 [container-type:size] ${canvasClassName}`}>
+      <div data-stage className={`relative h-[min(100vh,56.25vw)] w-[min(100vw,177.78vh)] shrink-0 @container-size ${canvasClassName}`}>
         {children}
       </div>
     </div>

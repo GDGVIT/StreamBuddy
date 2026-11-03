@@ -81,9 +81,9 @@ function DurationPanel ({ draft, setDraft }) {
         </div>
       </div>
       {/* TODO: stopwatch illustration from Figma isn't in assets yet */}
-      <div className="absolute right-[2.6cqw] top-1/2 -translate-y-[40%]">
-        <img src={burst} alt="" className="absolute -left-[1.6cqw] -top-[1.4cqw] w-[1.9cqw] -scale-x-100" />
-        <span className="absolute -top-[0.9cqw] left-1/2 h-[0.7cqw] w-[1.6cqw] -translate-x-1/2 rounded-[0.2cqw] bg-black" />
+      <div className="absolute right-[2.6cqw] top-1/2 translate-y-[-40%]">
+        <img src={burst} alt="" className="absolute left-[-1.6cqw] top-[-1.4cqw] w-[1.9cqw] -scale-x-100" />
+        <span className="absolute top-[-0.9cqw] left-1/2 h-[0.7cqw] w-[1.6cqw] -translate-x-1/2 rounded-[0.2cqw] bg-black" />
         <span className="flex h-[5.2cqw] w-[5.2cqw] items-center justify-center rounded-full border-[0.3cqw] border-black bg-[#975DE0] p-[0.35cqw]">
           <span className="flex h-full w-full items-center justify-center rounded-full border-[0.15cqw] border-black bg-[#FEEB6A]">
             <Clock3 className="h-[115%] w-[115%]" strokeWidth={1.4} />
@@ -119,7 +119,7 @@ function FolderPanel ({ draft, setDraft }) {
       </div>
       <div className="absolute right-[2.6cqw] top-1/2 -translate-y-1/2">
         <img src={folderIcon} alt="" className="w-[6.4cqw] -rotate-12" />
-        <img src={burst} alt="" className="absolute -right-[0.6cqw] -top-[0.9cqw] w-[1.9cqw]" />
+        <img src={burst} alt="" className="absolute right-[-0.6cqw] top-[-0.9cqw] w-[1.9cqw]" />
       </div>
     </>
   )
@@ -147,7 +147,7 @@ function HotkeyPanel ({ draft, setDraft, listening, setListening }) {
     <>
       <div>
         <h3 className="text-[1.85cqw] font-bold leading-tight">Configure Hotkey</h3>
-        <p className="max-w-[27cqw] font-body text-[1.02cqw] leading-[1.25] text-[#555] tracking-[0.03em]">
+        <p className="max-w-[27cqw] font-body text-[1.02cqw] leading-tight text-[#555] tracking-[0.03em]">
           Choose the keyboard shortcut used to instantly capture clips while you&apos;re streaming.
         </p>
         <p className="mt-[0.15cqw] text-[1.02cqw] font-bold leading-[1.3]">Current Hotkey: {draft.hotkey}</p>
@@ -256,10 +256,10 @@ export default function Settings ({ user, username, initialTab = 'account', onCl
   const panelProps = { draft, setDraft }
 
   return (
-    <Stage portal role="dialog" aria-modal="true" aria-labelledby="settings-title" data-ui className="z-50 bg-black/60 font-display text-black">
+    <Stage portal role="dialog" aria-modal="true" aria-labelledby="settings-title" className="z-50 bg-black/60 font-display text-black">
       <div className="absolute inset-0 flex items-center justify-center">
         {/* nudged up-left by half the shadow so the card + shadow sit centred */}
-        <div className="w-[55cqw] -translate-x-[0.55cqw] -translate-y-[0.55cqw] overflow-hidden rounded-[1.3cqw] border-[0.33cqw] border-black bg-[#D8BBFC] shadow-[1.1cqw_1.1cqw_0_#000]">
+        <div className="w-[55cqw] translate-x-[-0.55cqw] translate-y-[-0.55cqw] overflow-hidden rounded-[1.3cqw] border-[0.33cqw] border-black bg-[#D8BBFC] shadow-[1.1cqw_1.1cqw_0_#000]">
           <header className="flex h-[6.2cqw] items-center justify-between border-b-[0.35cqw] border-black bg-sb-purple-dark pl-[2.4cqw] pr-[1.9cqw]">
             <h2 id="settings-title" className="flex items-center gap-[1.4cqw] text-[2.85cqw] font-bold tracking-[0.04em] text-[#EFE3FF]">
               <img src={gearIcon} alt="" className="w-[4.4cqw]" />
@@ -310,14 +310,14 @@ export default function Settings ({ user, username, initialTab = 'account', onCl
               </div>
               <ChunkyButton
                 onClick={onClose}
-                className="h-[3.65cqw] w-[12cqw] shrink-0 rounded-[0.6cqw] border-[0.15cqw] border-black bg-[#E4D0FD] font-body text-[1.55cqw] font-medium tracking-[0.05em] shadow-[0_0.6cqw_0_#000]"
+                className="h-[3.65cqw] w-[12cqw] shrink-0 rounded-[0.6cqw] border-[0.15cqw] border-black bg-[#E4D0FD] font-body text-[1.55cqw] font-medium tracking-wider shadow-[0_0.6cqw_0_#000]"
               >
                 Cancel
               </ChunkyButton>
               <ChunkyButton
                 onClick={handleSave}
                 disabled={saving || !original}
-                className="h-[3.65cqw] w-[14.4cqw] shrink-0 rounded-[0.6cqw] border-[0.15cqw] border-black bg-sb-tab-yellow font-body text-[1.55cqw] font-medium tracking-[0.05em] shadow-[0_0.6cqw_0_#000]"
+                className="h-[3.65cqw] w-[14.4cqw] shrink-0 rounded-[0.6cqw] border-[0.15cqw] border-black bg-sb-tab-yellow font-body text-[1.55cqw] font-medium tracking-wider shadow-[0_0.6cqw_0_#000]"
               >
                 {saving ? 'Saving…' : 'Save Changes'}
               </ChunkyButton>

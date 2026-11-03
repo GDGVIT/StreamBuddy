@@ -25,7 +25,7 @@ export function ClipThumbnail ({ clip, onDuration, className = '' }) {
 
 export function ClipMeta ({ clip, className = '' }) {
   return (
-    <div className={`bg-sb-dash px-[0.5cqw] py-[0.2cqw] font-body text-[0.62cqw] leading-[1.25] text-black/70 ${className}`}>
+    <div className={`bg-sb-dash px-[0.5cqw] py-[0.2cqw] font-body text-[0.62cqw] leading-tight text-black/70 ${className}`}>
       <p className="truncate text-black">{clip.name}</p>
       <p className="flex justify-between gap-[0.4cqw]">
         <span className="shrink-0">{timeAgo(clip.createdAt)}</span>
