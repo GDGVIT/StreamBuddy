@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import tempfile
 
 import whisper
 
@@ -174,6 +175,17 @@ def burn_subtitles_to_video(
         return None
 
 
+def load_whisper_model():
+    """Loads the Whisper model that transcribes the clip.
+
+    The installed app ships the model file and points STREAMBUDDY_WHISPER_DIR at it,
+    so nothing is downloaded on first use. Run from source, Whisper downloads it to
+    ~/.cache/whisper the first time.
+    """
+    model_dir = os.environ.get("STREAMBUDDY_WHISPER_DIR") or None
+    return whisper.load_model("base", device="cpu", download_root=model_dir)
+
+
 def use_utf8_output():
     """Prints UTF-8 whatever the console's default is.
 
@@ -200,13 +212,17 @@ def process_video_pipeline(
         return None
 
     ml_dir = os.path.dirname(os.path.abspath(__file__))
-    srt_file_path = os.path.join(ml_dir, "temp_subs.srt")
 
-    try:
+    # The subtitles only exist while the video is being built, so they go in a
+    # temporary folder of their own. The installed app's folder isn't the place for
+    # them, and two runs at once can't clash. The folder is removed when done.
+    with tempfile.TemporaryDirectory(prefix="streambuddy-") as work_dir:
+        srt_file_path = os.path.join(work_dir, "subs.srt")
+
         # 1. Step One: Run AI Speech-to-Text Transcription
         print("STAGE:TRANSCRIBING", flush=True)
         try:
-            model = whisper.load_model("base", device="cpu")
+            model = load_whisper_model()
             results = model.transcribe(input_video_path, word_timestamps=True)
         except (RuntimeError, OSError) as e:
             # e.g. the recording has no audio track, or the model file is missing
@@ -240,11 +256,6 @@ def process_video_pipeline(
             print("STAGE:ERROR:Couldn't build the vertical video.", flush=True)
 
         return final_video_path
-
-    finally:
-        # 4. Clean up temporary text file artifacts
-        if os.path.exists(srt_file_path):
-            os.remove(srt_file_path)
 
 
 if __name__ == "__main__":

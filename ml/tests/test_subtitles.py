@@ -1,4 +1,4 @@
-"""Unit tests for the subtitle helpers in pipeline.py (no Whisper or ffmpeg needed)."""
+"""Unit tests for the helpers in pipeline.py (no Whisper or ffmpeg needed)."""
 
 import io
 import sys
@@ -120,3 +120,38 @@ def test_output_switches_to_utf8_on_a_legacy_windows_console(monkeypatch):
     print("ゲーム 🔥", flush=True)
 
     assert raw.getvalue().decode("utf-8").strip() == "ゲーム 🔥"
+
+
+# ── Whisper model ──────────────────────────────────────────────────────────────
+
+
+@pytest.fixture(name="load_calls")
+def fixture_load_calls(monkeypatch):
+    """Records how pipeline.py asks Whisper for its model, instead of loading it."""
+    calls = []
+    monkeypatch.setattr(
+        pipeline.whisper,
+        "load_model",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+        raising=False,
+    )
+    return calls
+
+
+def test_uses_the_model_shipped_with_the_app(monkeypatch, load_calls):
+    """The installed app says where its copy of the model is."""
+    monkeypatch.setenv("STREAMBUDDY_WHISPER_DIR", r"C:\StreamBuddy\resources\whisper")
+    pipeline.load_whisper_model()
+    assert load_calls == [
+        (
+            ("base",),
+            {"device": "cpu", "download_root": r"C:\StreamBuddy\resources\whisper"},
+        )
+    ]
+
+
+def test_falls_back_to_whispers_own_download_folder(monkeypatch, load_calls):
+    """Run from source, Whisper keeps the model in ~/.cache/whisper as usual."""
+    monkeypatch.delenv("STREAMBUDDY_WHISPER_DIR", raising=False)
+    pipeline.load_whisper_model()
+    assert load_calls == [(("base",), {"device": "cpu", "download_root": None})]

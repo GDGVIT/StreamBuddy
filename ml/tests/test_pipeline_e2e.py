@@ -7,6 +7,10 @@ The real-footage checks need a sample recording, which isn't kept in the repo: a
 1080p gameplay clip with the webcam in the top-left corner and someone talking. Put
 it at ml/examples/test.mp4 (ignored by git) or point STREAMBUDDY_SAMPLE_VIDEO at it.
 Without one, those checks skip and the generated-video checks still run.
+
+To check the standalone build the installer ships instead of pipeline.py, point
+STREAMBUDDY_PIPELINE_EXE at it (app/bundle/pipeline/pipeline.exe, made by
+build_pipeline.py).
 """
 
 import importlib
@@ -21,6 +25,7 @@ import pytest
 
 ML_DIR = Path(__file__).resolve().parent.parent
 PIPELINE = ML_DIR / "pipeline.py"
+PIPELINE_EXE = os.environ.get("STREAMBUDDY_PIPELINE_EXE")
 SAMPLE = Path(
     os.environ.get("STREAMBUDDY_SAMPLE_VIDEO", ML_DIR / "examples" / "test.mp4")
 )
@@ -56,8 +61,9 @@ media = pytest.importorskip(
 class Run:  # pylint: disable=too-few-public-methods
     """The result of one pipeline run: its exit code, output lines and STAGE events."""
 
-    def __init__(self, completed, source, output_dir):
+    def __init__(self, completed, source, output_dir, temp_dir):
         self.source = source
+        self.temp_dir = temp_dir
         self.returncode = completed.returncode
         self.stdout = completed.stdout
         self.stderr = completed.stderr
@@ -87,10 +93,25 @@ def to_seconds(timestamp):
 
 
 def run_pipeline(video, output_dir, cwd, env_overrides=None):
-    """Runs pipeline.py as a separate process, exactly like main.js spawns it."""
-    env = {**os.environ, "PYTHONIOENCODING": "utf-8", **(env_overrides or {})}
+    """Runs the pipeline as a separate process, exactly like main.js spawns it."""
+    # A temporary folder of its own, to check that it cleans up after itself
+    temp_dir = Path(cwd) / "temp"
+    temp_dir.mkdir(exist_ok=True)
+    env = {
+        **os.environ,
+        "PYTHONIOENCODING": "utf-8",
+        "TMPDIR": str(temp_dir),
+        "TEMP": str(temp_dir),
+        "TMP": str(temp_dir),
+        **(env_overrides or {}),
+    }
+    program = (
+        [str(Path(PIPELINE_EXE).resolve())]
+        if PIPELINE_EXE
+        else [sys.executable, str(PIPELINE)]
+    )
     completed = subprocess.run(
-        [sys.executable, str(PIPELINE), str(video), FACECAM, str(output_dir)],
+        [*program, str(video), FACECAM, str(output_dir)],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -99,7 +120,7 @@ def run_pipeline(video, output_dir, cwd, env_overrides=None):
         timeout=600,
         check=False,
     )
-    return Run(completed, Path(video), output_dir)
+    return Run(completed, Path(video), output_dir, temp_dir)
 
 
 def make_video(path, *ffmpeg_args):
@@ -215,6 +236,7 @@ def test_subtitles_are_burned_in_with_the_yellow_highlight(real_clip):
 def test_cleans_up_its_temporary_subtitle_file(real_clip):
     """The .srt is only needed while burning the video in."""
     assert real_clip.returncode == 0
+    assert not list(real_clip.temp_dir.iterdir())
     assert not (ML_DIR / "temp_subs.srt").exists()
 
 
@@ -263,7 +285,7 @@ def test_reports_an_error_for_a_recording_without_audio(tmp_path):
     run = run_pipeline(source, tmp_path / "out", cwd=tmp_path)
     assert run.stages == ["TRANSCRIBING", "ERROR:Couldn't transcribe the clip's audio."]
     assert not (tmp_path / "out" / "polished_silent.mp4").exists()
-    assert not (ML_DIR / "temp_subs.srt").exists()
+    assert not list(run.temp_dir.iterdir())
 
 
 def test_reports_an_error_when_the_recording_is_missing(tmp_path):
